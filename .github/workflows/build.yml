@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest  # Use the Windows runner
+    runs-on: windows-latest  # Use Windows runner
 
     steps:
     - name: Checkout code
@@ -28,7 +28,7 @@ jobs:
     - name: Update URL in static_code.py
       run: |
         echo "Updating the payload URL dynamically..."
-        powershell -Command "(Get-Content static_code.py) -replace '\"https://example.com/payload\"', '\"${{ github.event.inputs.payload_url }}\"' | Set-Content static_code.py"
+        powershell -Command "$url = '${{ github.event.inputs.payload_url }}'; (Get-Content static_code.py) -replace '\"https://example.com/payload\"', '\"$url\"' | Set-Content static_code.py"
         echo "[INFO] URL updated in static_code.py."
 
     - name: Build executable
@@ -46,6 +46,7 @@ jobs:
       with:
         name: static_code_exe
         path: dist/static_code.exe  # Windows .exe file will be created here
+
 
 
 
