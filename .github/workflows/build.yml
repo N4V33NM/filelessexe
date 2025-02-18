@@ -1,0 +1,44 @@
+name: Build and Update Static Code
+
+on:
+  workflow_dispatch:
+    inputs:
+      payload_url:
+        description: 'URL to fetch payload'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        pip install pyinstaller psutil
+
+    - name: Update URL in static_code.py
+      run: |
+        echo "Updating the payload URL dynamically..."
+        url=${{ github.event.inputs.payload_url }}
+        sed -i "s|\"https://example.com/payload\"|\"$url\"|" static_code.py
+        echo "[INFO] URL updated in static_code.py to: $url"
+
+    - name: Build executable
+      run: |
+        echo "Building executable with PyInstaller..."
+        pyinstaller --onefile static_code.py
+
+    - name: Upload executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: static_code_exe
+        path: dist/static_code.exe
