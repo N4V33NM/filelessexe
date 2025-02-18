@@ -10,49 +10,42 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest  # Use the Windows runner
 
     steps:
-    # Step 1: Checkout repository
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Set up Python
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
-    # Step 3: Install dependencies
     - name: Install dependencies
       run: |
-        echo "[INFO] Installing dependencies..."
         pip install pyinstaller psutil
 
-    # Step 4: Update the URL in static_code.py
     - name: Update URL in static_code.py
       run: |
-        echo "[INFO] Updating the payload URL dynamically..."
+        echo "Updating the payload URL dynamically..."
         url=${{ github.event.inputs.payload_url }}
         sed -i "s|\"https://example.com/payload\"|\"$url\"|" static_code.py
         echo "[INFO] URL updated in static_code.py to: $url"
 
-    # Step 5: Build the executable
-    - name: Build executable with PyInstaller
+    - name: Build executable
       run: |
-        echo "[INFO] Building executable with PyInstaller..."
+        echo "Building executable with PyInstaller..."
         pyinstaller --onefile static_code.py
 
-    # Step 6: Debug - List the dist directory to confirm .exe exists
-    - name: List dist directory contents
+    - name: Debug: List dist directory
       run: |
-        echo "[INFO] Listing contents of the dist directory..."
-        ls -lh dist
+        echo "[INFO] Checking contents of the dist directory..."
+        dir dist
 
-    # Step 7: Upload the executable as an artifact
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: static_code_exe
-        path: dist/static_code.exe
+        path: dist/static_code.exe  # Windows .exe file will be created here
+
 
