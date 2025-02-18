@@ -28,9 +28,8 @@ jobs:
     - name: Update URL in static_code.py
       run: |
         echo "Updating the payload URL dynamically..."
-        url=${{ github.event.inputs.payload_url }}
-        sed -i "s|\"https://example.com/payload\"|\"$url\"|" static_code.py
-        echo "[INFO] URL updated in static_code.py to: $url"
+        powershell -Command "(Get-Content static_code.py) -replace '\"https://example.com/payload\"', '\"${{ github.event.inputs.payload_url }}\"' | Set-Content static_code.py"
+        echo "[INFO] URL updated in static_code.py."
 
     - name: Build executable
       run: |
@@ -47,5 +46,6 @@ jobs:
       with:
         name: static_code_exe
         path: dist/static_code.exe  # Windows .exe file will be created here
+
 
 
