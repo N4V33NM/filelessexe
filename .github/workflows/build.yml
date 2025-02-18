@@ -38,7 +38,7 @@ jobs:
         pyinstaller --onefile static_code.py
 
     - name: Upload executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: static_code_exe
         path: dist/static_code.exe
