@@ -1,4 +1,4 @@
-name: Build and Update Static Code
+name: Build PowerShell EXE using ps2exe
 
 on:
   workflow_dispatch:
@@ -17,50 +17,40 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Check PowerShell version
-    - name: Check PowerShell version
+    # Step 2: Download ps2exe module
+    - name: Download ps2exe module
       run: |
-        powershell -Command "$PSVersionTable.PSVersion"
+        Install-Module -Name ps2exe -Force -Scope CurrentUser
 
-    # Step 3: Install PS2EXE (to convert PS scripts to EXEs)
-    - name: Install PS2EXE and Dependencies
-      shell: pwsh
+    # Step 3: Fetch the payload script from the provided URL and save it
+    - name: Fetch Payload from URL
       run: |
-        Install-Module -Name PS2EXE -Force -SkipPublisherCheck
-
-    # Step 4: Update the payload URL dynamically in static_code.ps1
-    - name: Update URL in static_code.ps1
-      shell: pwsh
-      run: |
-        echo "Updating the payload URL dynamically..."
         $url = '${{ github.event.inputs.payload_url }}'
-        $fileContent = Get-Content static_code.ps1
-        $updatedContent = $fileContent -replace 'url = "https://example.com/payload"', "url = `"$url`""
-        $updatedContent | Set-Content static_code.ps1
-        echo "[INFO] URL updated in static_code.ps1."
+        $payload = Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
+        Write-Host "[INFO] Payload script downloaded."
 
-    # Step 5: Convert PowerShell script to executable using PS2EXE
-    - name: Convert PowerShell Script to Executable
-      shell: pwsh
+    # Step 4: Convert the PowerShell script to an executable
+    - name: Convert PowerShell script to EXE using ps2exe
       run: |
-        Write-Host "[INFO] Converting PowerShell script to EXE using PS2EXE..."
-        ps2exe .\static_code.ps1 .\static_code.exe
+        ps2exe .\payload.ps1 .\payload.exe
+        Write-Host "[INFO] Payload converted to EXE."
 
-    # Step 6: List the contents of the output directory
+    # Step 5: List the contents of the output directory
     - name: List contents of the output directory
       run: |
-        echo "[INFO] Listing contents of the output directory..."
         dir
 
-    # Step 7: Upload the executable as an artifact
+    # Step 6: Upload the executable as an artifact
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
-        name: static_code_exe
-        path: static_code.exe
+        name: payload_exe
+        path: payload.exe
         if-no-files-found: warn
         compression-level: 6
         overwrite: false
+        include-hidden-files: false
+
 
 
 
