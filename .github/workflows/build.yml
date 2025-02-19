@@ -17,7 +17,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Set up PowerShell (no need for specific setup action, PowerShell is already pre-installed)
+    # Step 2: Check PowerShell version
     - name: Check PowerShell version
       run: |
         powershell -Command "$PSVersionTable.PSVersion"
@@ -61,5 +61,6 @@ jobs:
         if-no-files-found: warn
         compression-level: 6
         overwrite: false
+
 
 
