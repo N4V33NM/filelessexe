@@ -13,42 +13,48 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    # Step 1: Check out the repository
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # Step 2: Set up Python environment
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
+    # Step 3: Install required Python dependencies
     - name: Install dependencies
       run: |
-        pip install pyinstaller psutil
+        pip install pyinstaller psutil requests
 
+    # Step 4: Dynamically update the payload URL in static_code.py
     - name: Update URL in static_code.py
       shell: pwsh
       run: |
         echo "Updating the payload URL dynamically..."
         $url = '${{ github.event.inputs.payload_url }}'
-        (Get-Content static_code.py) -replace 'url = "https://example.com/payload"', "url = `"$url`"" | Set-Content static_code.py
+        $fileContent = Get-Content static_code.py
+        $updatedContent = $fileContent -replace 'url = "https://example.com/payload"', "url = `"$url`""
+        $updatedContent | Set-Content static_code.py
         echo "[INFO] URL updated in static_code.py."
 
+    # Step 5: Build the Python script into an executable
     - name: Build executable
       run: |
         echo "Building executable with PyInstaller..."
-        pyinstaller --onefile static_code.py
+        pyinstaller --onefile --hidden-import=requests --hidden-import=psutil static_code.py
 
+    # Step 6: List the contents of the output directory
     - name: List contents of the dist directory
       run: |
         echo "[INFO] Listing contents of the dist directory..."
         dir dist
 
+    # Step 7: Upload the executable as an artifact
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: static_code_exe
         path: dist/static_code.exe
         if-no-files-found: warn
-        compression-level: 6
-        overwrite: false
-        include-hidden-files: false
