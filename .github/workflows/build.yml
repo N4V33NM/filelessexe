@@ -13,15 +13,16 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    # Step 1: Checkout the repository
+    # Step 1: Check out the repository
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Set up PowerShell
-    - name: Set up PowerShell
-      uses: actions/setup-powershell@v2
+    # Step 2: Set up PowerShell (no need for specific setup action, PowerShell is already pre-installed)
+    - name: Check PowerShell version
+      run: |
+        powershell -Command "$PSVersionTable.PSVersion"
 
-    # Step 3: Install PS2EXE and Dependencies (if needed)
+    # Step 3: Install PS2EXE (to convert PS scripts to EXEs)
     - name: Install PS2EXE and Dependencies
       shell: pwsh
       run: |
@@ -38,7 +39,7 @@ jobs:
         $updatedContent | Set-Content static_code.ps1
         echo "[INFO] URL updated in static_code.ps1."
 
-    # Step 5: Convert PowerShell script to executable
+    # Step 5: Convert PowerShell script to executable using PS2EXE
     - name: Convert PowerShell Script to Executable
       shell: pwsh
       run: |
@@ -60,3 +61,4 @@ jobs:
         if-no-files-found: warn
         compression-level: 6
         overwrite: false
+
