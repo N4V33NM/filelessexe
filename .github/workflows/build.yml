@@ -17,8 +17,7 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Install .NET SDK
-      run: |
-        dotnet --version
+      run: dotnet --version
 
     - name: Fetch Payload from URL
       run: |
@@ -72,4 +71,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: PowerShellRunner/bin/Release/net8.0/PowerShellRunner.exe
+        path: PowerShellRunner/bin/Release/net9.0/PowerShellRunner.exe
+
