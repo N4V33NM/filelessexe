@@ -26,7 +26,7 @@ jobs:
       - name: Inject URL into static_code.ps1
         shell: powershell
         run: |
-          $scriptPath = "${{ github.workspace }}\filelessexe\static_code.ps1"
+          $scriptPath = "${{ github.workspace }}"
           
           if (-Not (Test-Path $scriptPath)) {
               Write-Host "[ERROR] static_code.ps1 not found at $scriptPath"
@@ -46,7 +46,7 @@ jobs:
       - name: Generate C# code with Embedded PowerShell Script
         shell: powershell
         run: |
-          $scriptPath = "${{ github.workspace }}\filelessexe\static_code.ps1"
+          $scriptPath = "${{ github.workspace }}"
           
           if (-Not (Test-Path $scriptPath)) {
               Write-Host "[ERROR] static_code.ps1 not found at $scriptPath"
