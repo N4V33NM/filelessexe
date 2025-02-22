@@ -1,6 +1,9 @@
 name: Build PowerShell EXE using .NET
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       payload_url:
@@ -37,6 +40,7 @@ jobs:
 
           if (-Not (Test-Path $scriptPath)) {
               Write-Host "[ERROR] static_code.ps1 not found at expected location: $scriptPath"
+              Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse
               exit 1
           }
 
@@ -47,14 +51,22 @@ jobs:
 
       - name: Install .NET SDK
         shell: powershell
-        run: dotnet --version
+        run: |
+          if (-Not (Get-Command "dotnet" -ErrorAction SilentlyContinue)) {
+              Write-Host "[ERROR] .NET SDK not found!"
+              exit 1
+          }
+          Write-Host "[INFO] .NET SDK found. Version:"
+          dotnet --version
 
       - name: Create .NET Console Project
         shell: powershell
         run: |
+          Write-Host "[INFO] Creating .NET console project..."
           dotnet new console -o PowerShellRunner
           cd PowerShellRunner
           dotnet add package Microsoft.PowerShell.SDK
+          Write-Host "[SUCCESS] .NET project created."
 
       - name: Generate C# Code with Embedded PowerShell Script
         shell: powershell
@@ -115,9 +127,3 @@ jobs:
         with:
           name: payload_exe
           path: PowerShellRunner/bin/Release/**/PowerShellRunner.exe
-
-
-
-
-
-
