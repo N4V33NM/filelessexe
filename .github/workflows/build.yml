@@ -1,12 +1,7 @@
-name: Build PowerShell EXE with Dynamic URL
+name: Build PowerShell EXE
 
 on:
   workflow_dispatch:
-    inputs:
-      payload_url:
-        description: 'URL to fetch payload'
-        required: true
-        type: string
 
 jobs:
   build:
@@ -15,11 +10,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
-    - name: Inject Payload URL into Program.cs
-      run: |
-        $url = '${{ github.event.inputs.payload_url }}'
-        (Get-Content Program.cs) -replace '__PAYLOAD_URL__', $url | Set-Content Program.cs
 
     - name: Create .NET console project
       run: |
@@ -38,6 +28,7 @@ jobs:
       with:
         name: payload_exe
         path: PowerShellRunner/bin/Release/**/PowerShellRunner.exe
+
 
 
 
