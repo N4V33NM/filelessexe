@@ -32,65 +32,67 @@ jobs:
           cd PowerShellRunner
           dotnet add package Microsoft.PowerShell.SDK
 
-      - name: Generate C# code with Embedded PowerShell Script (Debug Logs Added)
-        shell: powershell
-        run: |
-          Write-Host "[INFO] Reading PowerShell script..."
-          $ps_script = Get-Content -Path 'static_code.ps1' -Raw
-          Write-Host "[INFO] PowerShell script content:"
-          Write-Host "-----------------------------------"
-          Write-Host $ps_script
-          Write-Host "-----------------------------------"
+      -  name: Generate C# code with Embedded PowerShell Script (Debug Logs Added)
+         shell: powershell
+         run: |
+            Write-Host "[INFO] Reading PowerShell script..."
+            $ps_script = Get-Content -Path 'static_code.ps1' -Raw
+            Write-Host "[INFO] PowerShell script content:"
+            Write-Host "-----------------------------------"
+            Write-Host $ps_script
+            Write-Host "-----------------------------------"
+        
+            Write-Host "[INFO] Escaping PowerShell script..."
+            $escaped_script = $ps_script -replace "\\", "\\\\" -replace "`"", "\\`"" -replace "`r?`n", "\n"
+        
+            Write-Host "[INFO] Generated escaped PowerShell script:"
+            Write-Host "-----------------------------------"
+            Write-Host $escaped_script
+            Write-Host "-----------------------------------"
+        
+            Write-Host "[INFO] Generating C# code..."
+            $csharp_code = @"
+            using System;
+            using System.Management.Automation;
+        
+            class Program {
+                static void Main() {
+                    Console.WriteLine("[INFO] PowerShell execution started from C#.");
+        
+                    string script = @`"$escaped_script`";
+                    
+                    using (PowerShell ps = PowerShell.Create()) {
+                        ps.AddScript(script);
+                        var results = ps.Invoke();
+        
+                        Console.WriteLine("[INFO] Execution Results:");
+                        foreach (var result in results) {
+                            Console.WriteLine(result);
+                        }
+        
+                        if (ps.HadErrors) {
+                            Console.WriteLine("[ERROR] PowerShell encountered an error.");
+                            foreach (var error in ps.Streams.Error) {
+                                Console.WriteLine(error.ToString());
+                            }
+                        }
+                    }
+        
+                    Console.WriteLine("[SUCCESS] PowerShell execution completed.");
+                    Console.WriteLine("Press Enter to exit...");
+                    Console.ReadLine();  // Keep the console window open
+                }
+            }
+            "@
+        
+            Write-Host "[INFO] Generated C# code:"
+            Write-Host "-----------------------------------"
+            Write-Host $csharp_code
+            Write-Host "-----------------------------------"
+        
+            Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
+            Write-Host "[SUCCESS] C# code written to PowerShellRunner/Program.cs"
 
-          Write-Host "[INFO] Escaping PowerShell script..."
-          $escaped_script = $ps_script -replace "`"", "`"`"" -replace "`r?`n", "`n"
-          Write-Host "[INFO] Escaped script content:"
-          Write-Host "-----------------------------------"
-          Write-Host $escaped_script
-          Write-Host "-----------------------------------"
-
-          Write-Host "[INFO] Generating C# code..."
-          $csharp_code = @"
-          using System;
-          using System.Management.Automation;
-
-          class Program {
-              static void Main() {
-                  Console.WriteLine("[INFO] PowerShell execution started from C#.");
-
-                  string script = @`"$escaped_script`";
-                  
-                  using (PowerShell ps = PowerShell.Create()) {
-                      ps.AddScript(script);
-                      var results = ps.Invoke();
-
-                      Console.WriteLine("[INFO] Execution Results:");
-                      foreach (var result in results) {
-                          Console.WriteLine(result);
-                      }
-
-                      if (ps.HadErrors) {
-                          Console.WriteLine("[ERROR] PowerShell encountered an error.");
-                          foreach (var error in ps.Streams.Error) {
-                              Console.WriteLine(error.ToString());
-                          }
-                      }
-                  }
-
-                  Console.WriteLine("[SUCCESS] PowerShell execution completed.");
-                  Console.WriteLine("Press Enter to exit...");
-                  Console.ReadLine();  // Keep the console window open
-              }
-          }
-          "@
-
-          Write-Host "[INFO] Generated C# code:"
-          Write-Host "-----------------------------------"
-          Write-Host $csharp_code
-          Write-Host "-----------------------------------"
-
-          Set-Content -Path 'PowerShellRunner/Program.cs' -Value $csharp_code
-          Write-Host "[SUCCESS] C# code written to PowerShellRunner/Program.cs"
 
       - name: Build EXE
         shell: powershell
