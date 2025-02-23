@@ -17,26 +17,26 @@ jobs:
         echo '<Project Sdk="Microsoft.NET.Sdk">
         <PropertyGroup>
           <OutputType>Exe</OutputType>
-          <TargetFramework>net9.0</TargetFramework>
+          <TargetFramework>net8.0</TargetFramework>
           <ImplicitUsings>enable</ImplicitUsings>
           <Nullable>enable</Nullable>
         </PropertyGroup>
         </Project>' > PowerShellRunner/PowerShellRunner.csproj
-        cp -Force Program.cs PowerShellRunner/
+        cp Program.cs PowerShellRunner/Program.cs
         cd PowerShellRunner
         dotnet add package Microsoft.PowerShell.SDK
     
     - name: Build EXE
       run: |
-          cd PowerShellRunner
-          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
-
+        cd PowerShellRunner
+        dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: PowerShellRunner/bin/Release/net9.0/win-x64/PowerShellRunner.exe
+        path: PowerShellRunner/bin/Release/net8.0/win-x64/publish/PowerShellRunner.exe
+
 
 
 
