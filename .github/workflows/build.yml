@@ -25,11 +25,12 @@ jobs:
         cp -Force Program.cs PowerShellRunner/
         cd PowerShellRunner
         dotnet add package Microsoft.PowerShell.SDK
-
+    
     - name: Build EXE
       run: |
-        cd PowerShellRunner
-        dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
+          cd PowerShellRunner
+          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+
 
     - name: Upload Executable
       uses: actions/upload-artifact@v4
