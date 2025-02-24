@@ -1,64 +1,64 @@
-name: Build PowerShell EXE (IExpress)
+name: Build EXE using IExpress
 
 on:
   workflow_dispatch:
-    inputs:
-      payload_url:
-        description: 'URL to fetch PowerShell script'
-        required: true
-        type: string
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout Code
+    # Step 1: Checkout the repository
+    - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Check IExpress Availability
+    # Step 2: Verify IExpress is available
+    - name: Check if IExpress is installed
       shell: cmd
       run: |
-        where iexpress || echo "IExpress is missing!" > iexpress_missing.txt
+        where iexpress || (echo "IExpress is missing!" && exit /b 1)
 
-    - name: Fetch Payload Script
-      shell: powershell
-      run: |
-        Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.ps1'
-
-    - name: Verify Payload File
+    # Step 3: Validate the package.sed file before running IExpress
+    - name: Validate package.sed file
       shell: cmd
       run: |
-        if not exist "payload.ps1" echo "Payload script is missing!" && exit 1
+        echo "Checking package.sed file contents:"
+        type package.sed
 
-    - name: Create IExpress SED File
+    # Step 4: Run IExpress in Debug Mode (Manual Mode)
+    - name: Debug IExpress in Interactive Mode
       shell: cmd
       run: |
-        echo [Version] > package.sed
-        echo Class=IEXPRESS >> package.sed
-        echo SEDVersion=3 >> package.sed
-        echo [Options] >> package.sed
-        echo PackagePurpose=InstallApp >> package.sed
-        echo ShowInstallProgramWindow=0 >> package.sed
-        echo HideExtractAnimation=1 >> package.sed
-        echo UseLongFileNames=1 >> package.sed
-        echo TargetName="%TEMP%\payload.exe" >> package.sed
-        echo [Files] >> package.sed
-        echo payload.ps1 >> package.sed
-        echo [Strings] >> package.sed
-        echo InstallProgram=powershell.exe -ExecutionPolicy Bypass -File payload.ps1 >> package.sed
+        iexpress /M package.sed
 
-    - name: Run IExpress
+    # Step 5: Run IExpress to create EXE
+    - name: Run IExpress to build EXE
       shell: cmd
       run: |
-        iexpress /N /Q package.sed > iexpress_log.txt 2>&1 || (
-          echo "IExpress failed!" 
+        iexpress /N /Q package.sed > iexpress_log.txt 2>&1
+        if %ERRORLEVEL% NEQ 0 (
+          echo "IExpress failed! Log output:"
           type iexpress_log.txt
-          exit 1
+          exit /b %ERRORLEVEL%
         )
 
+    # Step 6: List directory to check if EXE was created
+    - name: List output directory
+      shell: cmd
+      run: dir
+
+    # Step 7: Upload the generated EXE as an artifact
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
-        name: payload_exe
-        path: "%TEMP%/payload.exe"
+        name: built_exe
+        path: "*.exe"
+
+    # Step 8: Upload the IExpress log for debugging (if it failed)
+    - name: Upload IExpress Log (if failed)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: iexpress_log
+        path: iexpress_log.txt
+
