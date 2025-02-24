@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       payload_url:
-        description: 'URL to fetch payload'
+        description: 'URL to fetch payload script'
         required: true
         type: string
 
@@ -17,50 +17,63 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Download PowerShell script from the given URL
+    # Step 2: Fetch PowerShell Script from URL
     - name: Fetch Payload Script
       shell: powershell
       run: |
         $url = '${{ github.event.inputs.payload_url }}'
         Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
+        if (!(Test-Path "payload.ps1")) { throw "Payload download failed!" }
 
-    # Step 3: Create runner.bat to execute the PowerShell script
-    - name: Create Runner Batch File
+    # Step 3: Generate IExpress SED Configuration File
+    - name: Create IExpress SED File
       shell: powershell
       run: |
-        Set-Content -Path "runner.bat" -Value "@echo off`n" -Encoding ASCII
-        Add-Content -Path "runner.bat" -Value "powershell.exe -ExecutionPolicy Bypass -File `"%TEMP%\payload.ps1`"" -Encoding ASCII
-        Add-Content -Path "runner.bat" -Value "exit" -Encoding ASCII
-
-    # Step 4: Create SED file for IExpress
-    - name: Create IExpress SED Configuration
-      shell: powershell
-      run: |
-        Set-Content -Path "package.sed" -Value @"
+        @'
         [Version]
         Class=IEXPRESS
         SEDVersion=3
         [Options]
-        ExtractOnly=0
-        ShowInstallProgramWindow=0
-        HideExtractAnimation=1
+        PackagePurpose=InstallApp
+        ShowInstallProgramWindow=1
+        HideExtractAnimation=0
+        UseLongFileName=1
+        InsideCompressed=0
+        CAB_FixedSize=0
+        RebootMode=N
+        InstallPrompt=
+        DisplayLicense=
+        FinishMessage=
         TargetName=payload.exe
+        FriendlyName=PowerShell Payload
+        AppLaunched=powershell.exe -ExecutionPolicy Bypass -File payload.ps1
+        PostInstallCmd=<None>
+        AdminQuietInstCmd=
+        UserQuietInstCmd=
+        SourceFiles=SourceFiles
+        [SourceFiles]
+        SourceFiles0=payload.ps1
         [Strings]
-        InstallProgram=runner.bat
-        SourceFiles=.
-        [SourceFiles0]
-        %SourceFiles%\payload.ps1=
-        %SourceFiles%\runner.bat=
-        "@ -Encoding ASCII
+        AppName=PowerShell Payload
+        ' | Set-Content -Path "package.sed" -Encoding ASCII
 
-    # Step 5: Run IExpress to create the EXE
-    - name: Build EXE using IExpress
+    # Step 4: Run IExpress to Create EXE
+    - name: Run IExpress
       shell: cmd
-      run: iexpress /N /Q package.sed
+      run: |
+        iexpress /N /Q package.sed > iexpress_log.txt 2>&1 || exit 1
 
-    # Step 6: Upload the generated EXE
+    # Step 5: Upload Log File for Debugging
+    - name: Upload IExpress Log
+      uses: actions/upload-artifact@v4
+      with:
+        name: iexpress_log
+        path: iexpress_log.txt
+
+    # Step 6: Upload the Generated EXE
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
         path: payload.exe
+
