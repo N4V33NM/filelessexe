@@ -1,10 +1,10 @@
-name: Build PowerShell EXE using IExpress
+name: Build PowerShell EXE (IExpress & WinRAR Fallback)
 
 on:
   workflow_dispatch:
     inputs:
       payload_url:
-        description: 'URL to fetch payload script'
+        description: 'URL to fetch PowerShell script'
         required: true
         type: string
 
@@ -13,68 +13,72 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
+    # Step 1: Checkout the repository
+    - name: Checkout Code
       uses: actions/checkout@v3
 
+    # Step 2: Check if IExpress is available
     - name: Check IExpress Availability
       shell: cmd
-      run: where iexpress || echo "IExpress not found!"
+      run: |
+        where iexpress || echo "IExpress is missing!" > iexpress_missing.txt
 
+    # Step 3: Fetch the payload script
     - name: Fetch Payload Script
       shell: powershell
       run: |
-        $url = '${{ github.event.inputs.payload_url }}'
-        Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
-        if (!(Test-Path "payload.ps1")) { throw "Payload download failed!" }
+        Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.ps1'
 
+    # Step 4: Create IExpress SED configuration
     - name: Create IExpress SED File
-      shell: powershell
+      shell: cmd
       run: |
-        $sedContent = @"
-        [Version]
-        Class=IEXPRESS
-        SEDVersion=3
-        [Options]
-        PackagePurpose=InstallApp
-        ShowInstallProgramWindow=1
-        HideExtractAnimation=0
-        UseLongFileName=1
-        InsideCompressed=0
-        CAB_FixedSize=0
-        RebootMode=N
-        InstallPrompt=
-        DisplayLicense=
-        FinishMessage=
-        TargetName=C:\Users\runneradmin\payload.exe
-        FriendlyName=PowerShell Payload
-        AppLaunched=powershell.exe -ExecutionPolicy Bypass -File payload.ps1
-        PostInstallCmd=<None>
-        AdminQuietInstCmd=
-        UserQuietInstCmd=
-        SourceFiles=SourceFiles
-        [SourceFiles]
-        SourceFiles0=payload.ps1
-        [Strings]
-        AppName=PowerShell Payload
-        "@
-        $sedContent | Set-Content -Path "package.sed" -Encoding ASCII
+        echo [Version] > package.sed
+        echo Class=IEXPRESS >> package.sed
+        echo [Options] >> package.sed
+        echo ExtractOnly=0 >> package.sed
+        echo HideExtractAnimation=1 >> package.sed
+        echo TargetName=C:\Users\runneradmin\Desktop\payload.exe >> package.sed
+        echo [Strings] >> package.sed
+        echo InstallProgram=powershell.exe -ExecutionPolicy Bypass -File payload.ps1 >> package.sed
 
+    # Step 5: Run IExpress (Try to create an EXE)
     - name: Run IExpress
       shell: cmd
       run: |
-        iexpress /N /Q package.sed || echo "IExpress failed!" && exit 1
+        iexpress /N /Q package.sed || echo "IExpress failed!" > iexpress_failed.txt
 
-    - name: Upload IExpress Log
-      uses: actions/upload-artifact@v4
-      with:
-        name: iexpress_log
-        path: iexpress_log.txt
+    # Step 6: Debug IExpress Failure (If it fails)
+    - name: Debug IExpress Failure
+      if: ${{ hashFiles('iexpress_failed.txt') != '' }}
+      shell: cmd
+      run: |
+        echo "IExpress failed! Checking logs..."
+        type iexpress_log.txt || echo "No log file found."
 
+    # Step 7: Install WinRAR (If IExpress fails)
+    - name: Download & Install WinRAR
+      if: ${{ hashFiles('iexpress_failed.txt') != '' }}
+      shell: powershell
+      run: |
+        Invoke-WebRequest -Uri "https://www.rarlab.com/rar/wrar600.exe" -OutFile "winrar.exe"
+        Start-Process -FilePath .\winrar.exe -ArgumentList "/S" -NoNewWindow -Wait
+
+    # Step 8: Create SFX Archive with WinRAR (Fallback)
+    - name: Create SFX Archive (WinRAR)
+      if: ${{ hashFiles('iexpress_failed.txt') != '' }}
+      shell: cmd
+      run: |
+        echo Setup=powershell.exe -ExecutionPolicy Bypass -File payload.ps1 > sfx_comment.txt
+        "C:\Program Files\WinRAR\winrar.exe" a -r -sfx -z"sfx_comment.txt" payload.exe payload.ps1
+
+    # Step 9: Upload EXE (Either from IExpress or WinRAR)
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: C:\Users\runneradmin\payload.exe
+        path: C:\Users\runneradmin\Desktop\payload.exe
+
 
 
 
