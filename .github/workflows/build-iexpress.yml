@@ -2,6 +2,11 @@ name: Build EXE using IExpress
 
 on:
   workflow_dispatch:
+    inputs:
+      payload_url:
+        description: 'URL to fetch the PowerShell payload'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -18,21 +23,29 @@ jobs:
       run: |
         where iexpress || (echo "IExpress is missing!" && exit /b 1)
 
-    # Step 3: Validate the package.sed file before running IExpress
+    # Step 3: Download PowerShell script from the provided URL
+    - name: Fetch Payload Script
+      shell: powershell
+      run: |
+        $url = "${{ github.event.inputs.payload_url }}"
+        Invoke-WebRequest -Uri $url -OutFile "payload.ps1"
+        Write-Host "Downloaded payload.ps1"
+
+    # Step 4: Validate package.sed file
     - name: Validate package.sed file
       shell: cmd
       run: |
         echo "Checking package.sed file contents:"
         type package.sed
 
-    # Step 4: Run IExpress in Debug Mode (Manual Mode)
+    # Step 5: Run IExpress in Debug Mode
     - name: Debug IExpress in Interactive Mode
       shell: cmd
       run: |
         iexpress /M package.sed
 
-    # Step 5: Run IExpress to create EXE
-    - name: Run IExpress to build EXE
+    # Step 6: Run IExpress to build EXE
+    - name: Run IExpress to create EXE
       shell: cmd
       run: |
         iexpress /N /Q package.sed > iexpress_log.txt 2>&1
@@ -42,23 +55,24 @@ jobs:
           exit /b %ERRORLEVEL%
         )
 
-    # Step 6: List directory to check if EXE was created
+    # Step 7: List directory to check if EXE was created
     - name: List output directory
       shell: cmd
       run: dir
 
-    # Step 7: Upload the generated EXE as an artifact
+    # Step 8: Upload the generated EXE
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: built_exe
         path: "*.exe"
 
-    # Step 8: Upload the IExpress log for debugging (if it failed)
+    # Step 9: Upload IExpress log if it failed
     - name: Upload IExpress Log (if failed)
       if: failure()
       uses: actions/upload-artifact@v4
       with:
         name: iexpress_log
         path: iexpress_log.txt
+
 
