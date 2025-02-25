@@ -67,14 +67,21 @@ jobs:
         $nsisScript = '!define APPNAME "PayloadScript"
         !define OUTPUT_FILE "payload.exe"
 
-        Outfile "$PLUGINSDIR\payload.exe"
+        Outfile "${OUTPUT_FILE}"
 
         Section "Main"
           InitPluginsDir
-          File /oname=$PLUGINSDIR\payload.ps1 payload.ps1
-          nsExec::Exec "powershell.exe -ExecutionPolicy Bypass -File $PLUGINSDIR\payload.ps1"
+          SetOutPath $TEMP
+          File /oname=$TEMP\payload.ps1 payload.ps1
+          ExecWait "powershell.exe -ExecutionPolicy Bypass -File $TEMP\payload.ps1"
         SectionEnd'
         Set-Content -Path "script.nsi" -Value $nsisScript -Encoding UTF8
+
+    # Step 5: Convert the PowerShell script to EXE using NSIS
+    - name: Compile NSIS Script
+      shell: powershell
+      run: makensis script.nsi
+
 
     # Step 5: Convert the PowerShell script to EXE using NSIS
     - name: Compile NSIS Script
